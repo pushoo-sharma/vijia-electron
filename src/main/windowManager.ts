@@ -3,7 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { IPC_CHANNELS } from '../shared/ipcChannels'
 import type { TabKey } from '../shared/tab'
-import { destroyOverlayWindow } from './overlayManager'
+import { destroyOverlayWindow, refreshOverlayWindow } from './overlayManager'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -98,6 +98,7 @@ export function showMainWindow(tab?: TabKey): void {
     app.dock?.show()
   }
   win.focus()
+  refreshOverlayWindow()
   win.webContents.send(IPC_CHANNELS.OPEN_WINDOW, { tab: t })
 }
 

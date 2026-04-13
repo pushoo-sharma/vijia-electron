@@ -7,7 +7,7 @@ import type {
   OverlayNotificationPayload
 } from '../shared/notification'
 import { IPC_CHANNELS } from '../shared/ipcChannels'
-import { getOverlayWebContents } from './overlayManager'
+import { getOverlayWebContents, refreshOverlayWindow } from './overlayManager'
 import { getMainWindow } from './windowManager'
 
 /**
@@ -112,6 +112,7 @@ export class NotificationManager {
   }
 
   private pushToOverlay(payload: OverlayNotificationPayload): void {
+    refreshOverlayWindow()
     const wc = getOverlayWebContents()
     if (!wc || wc.isDestroyed()) {
       this.pendingOverlayNotifications.push(payload)

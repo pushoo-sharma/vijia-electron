@@ -46,8 +46,8 @@ export function Overlay(): ReactElement {
   }, [])
 
   const onGuide = useCallback(() => {
-    window.vijia?.setGuideMode?.(true)
-  }, [])
+    window.vijia?.setGuideMode?.(!guideMode)
+  }, [guideMode])
 
   useEffect(() => {
     window.vijia?.setOverlayOpen?.(isOpen)

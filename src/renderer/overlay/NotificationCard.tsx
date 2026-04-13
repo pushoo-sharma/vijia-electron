@@ -58,14 +58,19 @@ export function NotificationCard({
                 </button>
               )
             }
+            const isGuideAction =
+              a.kind === 'guide' || a.id === 'guide'
+            const guideLabel =
+              isGuideAction && guideMode ? 'Stop guiding' : a.label
             return (
               <button
                 key={a.id}
                 type="button"
                 className="btn-guide"
+                aria-pressed={isGuideAction ? guideMode : undefined}
                 onClick={onGuide}
               >
-                {a.label}
+                {guideLabel}
               </button>
             )
           })}

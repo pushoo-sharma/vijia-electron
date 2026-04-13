@@ -6,6 +6,7 @@ import {
   setQuitting,
   showMainWindow
 } from './windowManager'
+import { nudgeOverlayWindowForWindows, refreshOverlayWindow } from './overlayManager'
 import { simulateTestNotification } from './NotificationManager'
 import { IPC_CHANNELS } from '../shared/ipcChannels'
 import type { TabKey } from '../shared/tab'
@@ -24,12 +25,14 @@ export function createTray(): void {
     {
       label: 'Open Vijia',
       click: (): void => {
+        nudgeOverlayWindowForWindows()
         showMainWindow('home')
       }
     },
     {
       label: 'Simulate Notification',
       click: (): void => {
+        refreshOverlayWindow()
         simulateTestNotification()
       }
     },

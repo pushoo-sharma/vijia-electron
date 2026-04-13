@@ -11,28 +11,57 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 let overlayWindow: BrowserWindow | null = null
-
 let overlayInputIpcRegistered = false
+let overlayDisplayListenersRegistered = false
 let lastIgnoreMouse = false
+let overlayOpen = false
 
-function getOverlayAlwaysOnTopLevel():
-  | 'floating'
-  | 'screen-saver'
-  | 'normal' {
-  if (process.platform === 'darwin') {
-    return 'screen-saver'
-  }
+/**
+ * On Windows we extend the window 40 px above the visible screen edge.
+ * Any native title-bar chrome Electron draws on transparent frameless windows
+ * is rendered in that hidden band and is never visible to the user.
+ * The FAB and all overlay content use CSS bottom/right anchoring so they
+ * remain correctly positioned within the visible area.
+ */
+const WIN32_TOP_BLEED_PX = 40
+
+function getPrimaryOverlayBounds(): Electron.Rectangle {
+  const wa = screen.getPrimaryDisplay().workArea
   if (process.platform === 'win32') {
-    return 'floating'
+    return {
+      x: wa.x,
+      y: wa.y - WIN32_TOP_BLEED_PX,
+      width: wa.width,
+      height: wa.height + WIN32_TOP_BLEED_PX
+    }
   }
+  return wa
+}
+
+function ensureOverlayDisplayListeners(): void {
+  if (overlayDisplayListenersRegistered) {
+    return
+  }
+  overlayDisplayListenersRegistered = true
+  const syncBounds = (): void => {
+    const w = getOverlayWindow()
+    if (w && !w.isDestroyed()) {
+      applyOverlayWindowState(w)
+    }
+  }
+  screen.on('display-metrics-changed', syncBounds)
+  screen.on('display-added', syncBounds)
+  screen.on('display-removed', syncBounds)
+}
+
+function getOverlayAlwaysOnTopLevel(): 'floating' | 'screen-saver' | 'normal' {
+  if (process.platform === 'darwin') return 'screen-saver'
+  if (process.platform === 'win32') return 'floating'
   return 'normal'
 }
 
 function applyOverlayWindowState(win: BrowserWindow): void {
-  const primary = screen.getPrimaryDisplay()
-  const { x, y } = primary.workArea
-  const { width, height } = primary.workAreaSize
-  win.setBounds({ x, y, width, height })
+  win.setBounds(getPrimaryOverlayBounds())
   win.setAlwaysOnTop(true, getOverlayAlwaysOnTopLevel())
 }
 
@@ -43,40 +72,34 @@ export function registerOverlayInputIpc(): void {
   }
   overlayInputIpcRegistered = true
 
-  ipcMain.on(
-    IPC_CHANNELS.SET_IGNORE_MOUSE,
-    (event, payload: { ignore: boolean }) => {
-      const ow = getOverlayWindow()
-      if (!ow || ow.isDestroyed() || event.sender !== ow.webContents) {
-        return
-      }
-      const ignore = Boolean(payload?.ignore)
-      lastIgnoreMouse = ignore
-      ow.setIgnoreMouseEvents(ignore, { forward: true })
-    }
-  )
+  ipcMain.on(IPC_CHANNELS.SET_IGNORE_MOUSE, (event, payload: { ignore: boolean }) => {
+    const ow = getOverlayWindow()
+    if (!ow || ow.isDestroyed() || event.sender !== ow.webContents) return
+    const ignore = Boolean(payload?.ignore)
+    lastIgnoreMouse = ignore
+    ow.setIgnoreMouseEvents(ignore, { forward: true })
+  })
 
-  ipcMain.on(
-    IPC_CHANNELS.VIJIA_OVERLAY_TOGGLE,
-    (event, _payload: { open: boolean }) => {
-      const ow = getOverlayWindow()
-      if (!ow || ow.isDestroyed() || event.sender !== ow.webContents) {
-        return
+  ipcMain.on(IPC_CHANNELS.VIJIA_OVERLAY_TOGGLE, (event, payload: { open: boolean }) => {
+    const ow = getOverlayWindow()
+    if (!ow || ow.isDestroyed() || event.sender !== ow.webContents) return
+    overlayOpen = Boolean(payload?.open)
+    if (process.platform === 'win32') {
+      ow.setFocusable(overlayOpen)
+      if (overlayOpen) {
+        ow.focus()
+      } else {
+        ow.showInactive()
       }
-      applyOverlayWindowState(ow)
     }
-  )
+    applyOverlayWindowState(ow)
+  })
 
-  ipcMain.on(
-    IPC_CHANNELS.VIJIA_FADE_STATE,
-    (event, _payload: { faded: boolean }) => {
-      const ow = getOverlayWindow()
-      if (!ow || ow.isDestroyed() || event.sender !== ow.webContents) {
-        return
-      }
-      ow.setIgnoreMouseEvents(lastIgnoreMouse, { forward: true })
-    }
-  )
+  ipcMain.on(IPC_CHANNELS.VIJIA_FADE_STATE, (event, _payload: { faded: boolean }) => {
+    const ow = getOverlayWindow()
+    if (!ow || ow.isDestroyed() || event.sender !== ow.webContents) return
+    ow.setIgnoreMouseEvents(lastIgnoreMouse, { forward: true })
+  })
 }
 
 function getOverlayPreloadPath(): string {
@@ -101,23 +124,40 @@ export function getOverlayWebContents(): Electron.WebContents | null {
   return w ? w.webContents : null
 }
 
+export function refreshOverlayWindow(): void {
+  const w = getOverlayWindow()
+  if (!w) return
+  w.setMenuBarVisibility(false)
+  applyOverlayWindowState(w)
+  if (process.platform === 'win32') {
+    w.setFocusable(overlayOpen)
+    if (!overlayOpen) w.showInactive()
+  }
+}
+
+export function nudgeOverlayWindowForWindows(): void {
+  refreshOverlayWindow()
+}
+
 export function getOrCreateOverlayWindow(): BrowserWindow {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     return overlayWindow
   }
 
-  const primary = screen.getPrimaryDisplay()
-  const wa = primary.workArea
-  const waSize = primary.workAreaSize
+  const bounds = getPrimaryOverlayBounds()
 
   overlayWindow = new BrowserWindow({
-    x: wa.x,
-    y: wa.y,
-    width: waSize.width,
-    height: waSize.height,
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     frame: false,
+    thickFrame: false,
     transparent: true,
+    backgroundColor: '#00000000',
     hasShadow: false,
+    title: '',
+    autoHideMenuBar: true,
     skipTaskbar: true,
     alwaysOnTop: true,
     resizable: false,
@@ -126,12 +166,13 @@ export function getOrCreateOverlayWindow(): BrowserWindow {
     maximizable: false,
     fullscreenable: false,
     show: true,
-    focusable: true,
+    // Non-focusable on Windows by default so DWM never activates the window chrome.
+    // Focusability is restored dynamically when the prompt is open.
+    focusable: process.platform !== 'win32',
     webPreferences: {
       preload: getOverlayPreloadPath(),
       contextIsolation: true,
       nodeIntegration: false,
-      // Preload imports a local bundled chunk; sandboxed preload can fail to load it.
       sandbox: false
     }
   })
@@ -139,13 +180,30 @@ export function getOrCreateOverlayWindow(): BrowserWindow {
   if (process.platform === 'darwin') {
     overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   }
+  overlayWindow.setMenuBarVisibility(false)
+  ensureOverlayDisplayListeners()
   applyOverlayWindowState(overlayWindow)
+
   overlayWindow.on('show', () => applyOverlayWindowState(overlayWindow!))
   overlayWindow.on('restore', () => applyOverlayWindowState(overlayWindow!))
   overlayWindow.on('enter-full-screen', () => applyOverlayWindowState(overlayWindow!))
   overlayWindow.on('leave-full-screen', () => applyOverlayWindowState(overlayWindow!))
 
-  // Start interactive so first click is capturable even before first mousemove sync.
+  if (process.platform === 'win32') {
+    overlayWindow.on('focus', () => {
+      if (overlayWindow && !overlayOpen) {
+        overlayWindow.setFocusable(false)
+        overlayWindow.showInactive()
+      }
+    })
+    overlayWindow.on('blur', () => {
+      if (overlayWindow && !overlayOpen) {
+        overlayWindow.setFocusable(false)
+        overlayWindow.showInactive()
+      }
+    })
+  }
+
   lastIgnoreMouse = false
   overlayWindow.setIgnoreMouseEvents(false, { forward: true })
 

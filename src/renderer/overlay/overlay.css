@@ -8,6 +8,21 @@
   --overlay-safe-bottom: 36px;
   --overlay-safe-right: 12px;
   --hub-height: 420px;
+  /*
+   * On Windows the overlay window starts 40 px above the visible screen edge so that
+   * any stray native title-bar chrome from Electron/DWM is rendered off-screen.
+   * CSS bottom/right anchoring already places the FAB in the correct visible area,
+   * but we expose the constant here for reference.
+   */
+  --win32-top-bleed: 40px;
+}
+
+/*
+ * Full-screen shell should not paint as a solid layer. Opacity on html/body would also
+ * fade the FAB (opacity stacks); hiding html and re-showing .overlay-column avoids that.
+ */
+html {
+  visibility: hidden;
 }
 
 html,
@@ -29,6 +44,7 @@ body,
 }
 
 .overlay-column {
+  visibility: visible;
   position: absolute;
   bottom: var(--overlay-safe-bottom);
   right: var(--overlay-safe-right);
