@@ -1,9 +1,13 @@
 {
   "manifest_version": 3,
+  "minimum_chrome_version": "114",
   "name": "Vijia Browser Bridge",
   "version": "0.1.0",
-  "description": "Extracts AI chat context and forwards it to the local Vijia Electron app.",
-  "permissions": ["contextMenus", "storage", "tabs"],
+  "description": "Guide Mode and browser bridge: step-by-step guidance and AI chat context to Vijia.",
+  "permissions": ["contextMenus", "storage", "tabs", "sidePanel"],
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
   "host_permissions": [
     "http://127.0.0.1/*",
     "https://chatgpt.com/*",

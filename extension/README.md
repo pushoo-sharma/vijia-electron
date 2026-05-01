@@ -1,6 +1,18 @@
 # Vijia Browser Bridge (Chrome extension)
 
-**Manifest V3** extension that runs on supported AI chat sites, extracts the latest **user + assistant** message pair, and **POSTs** it to the local Vijia Electron app over **loopback HTTP** (`127.0.0.1`). The app owns auth, deduplication, persistence, and downstream behavior.
+**Manifest V3** extension with **Guide Mode** (side panel) and a **chat capture** bridge: on supported AI chat sites it extracts the latest **user + assistant** message pair and **POSTs** it to the local Vijia Electron app over **loopback HTTP** (`127.0.0.1`). The app owns auth, deduplication, persistence, and downstream behavior. Guide plans are requested with **`POST /extension/guide-plan`** (Electron → Supabase `claude-proxy` with `guide: true`).
+
+## Guide Mode (Milestone 2)
+
+1. **Start Vijia** so the loopback bridge is up (`http://127.0.0.1:<port>`, default `45731`). The service worker can **`GET /extension/bootstrap`** to obtain `sessionToken` and `bridgeUrl` if options are empty.
+2. Open the **side panel**: click the extension icon in the toolbar (opens the side panel; `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` is set in the service worker).
+3. Enter a **goal** and click **Start guide**. The side panel calls the service worker, which **`POST`s** `{ sessionToken, goal }` to **`/extension/guide-plan`**. The Electron app calls **claude-proxy** and returns a JSON **steps** array.
+4. **Steps**:
+   - **`url_match`**: the active tab URL is checked via `chrome.tabs.onUpdated` / `chrome.tabs.onActivated` against `match_value` (host / substring heuristics). A match advances the step; a non-matching `http`/`https` URL increments a per-step “wrong” count and shows a short correction. After **3** wrong navigations, **Skip** and **Stop** are shown.
+   - **`manual_advance`**: use the **Done** button in the side panel to advance.
+5. **Stop guide** ends the run; **New goal** appears when all steps are complete.
+
+**Prerequisites for plans:** the Electron app must have **`VITE_SUPABASE_URL`** and **`VITE_SUPABASE_ANON_KEY`** so `claude-proxy` can be called. If not configured, the bridge returns a clear error to the side panel.
 
 ## Architecture (end-to-end)
 
@@ -24,10 +36,11 @@
 
 | File | Role |
 |------|------|
-| `manifest.json` | MV3: service worker, content scripts, `host_permissions` for chat sites + `http://127.0.0.1/*`, `options_page`, `storage` / `tabs` / `contextMenus`. |
+| `manifest.json` | MV3: service worker, **side panel** (`side_panel` + `sidePanel` permission), content scripts, `host_permissions` for chat sites + `http://127.0.0.1/*`, `options_page`, `storage` / `tabs` / `contextMenus`. |
+| `sidebar.html` + `sidebar.css` + `sidebar.js` | Guide Mode UI: goal, progress, current step, Done / Skip / Stop, sync via `chrome.storage` (`vijiaGuideState`). |
 | `site-adapters.js` | IIFE exposing `VIJIA_SITE_ADAPTERS.detectAdapter()`. Per-site `extractLastPair()`; ChatGPT has DOM role-based extraction + plaintext fallback. |
 | `content-script.js` | Schedules capture on user activity; stability wait; dedupes by hash; sends `VIJIA_CAPTURE` to the service worker. Listens for `VIJIA_SCHEDULE_CAPTURE` from the worker (tab focus). |
-| `service-worker.js` | Token/bootstrap, `POST /extension/handshake` and `/extension/capture`, toolbar badge, context menu “Reload extension”, `tabs.onActivated` → content script `tab-switch`. |
+| `service-worker.js` | Token/bootstrap, `POST` **handshake**, **capture**, **guide-plan**; **Guide** state + `tabs` URL watching; toolbar badge, context menu “Reload extension”, `tabs.onActivated` → content script `tab-switch` (chat sites) + guide URL evaluation. |
 | `options.html` + `options.js` | Edit `bridgeUrl` and `sessionToken` in `chrome.storage.local`. |
 
 ## Debug overlay (development)
@@ -45,8 +58,9 @@ In the extension **options** page, enable **Debug: show on-page overlay**, then 
 
 - **`getSettings()`** — Reads `bridgeUrl` + `sessionToken` from storage; if token missing, fetches bootstrap from `${bridgeUrl}/extension/bootstrap` and persists on success.
 - **`POST /extension/handshake`** — On install, startup, and service worker wake; sends `{ token, extensionVersion }`. Badge: **ON** (green) / **OFF** (red) / **SET** (amber, no token).
+- **`POST /extension/guide-plan`** — When starting a guide: `{ sessionToken, goal }` → Electron → **claude-proxy** (`guide: true`); response must be a JSON **steps** array. Same token as capture.
 - **`VIJIA_CAPTURE` messages** — Builds a normalized payload (`schema`, `eventId`, `capturedAt`, `site`, `url`, `title`, `tabId`, `frameId`, `source: 'browser-extension'`, `extract`, `pageState`) and **`POST /extension/capture`**. Retries on 5xx with backoff.
-- **`chrome.tabs.onActivated`** — If the active tab is a supported host, sends **`VIJIA_SCHEDULE_CAPTURE`** with reason `tab-switch` so the content script can debounce and capture after switching back to a chat tab.
+- **`chrome.tabs.onActivated`** / **`chrome.tabs.onUpdated`** — If the active tab is a **supported chat host**, sends **`VIJIA_SCHEDULE_CAPTURE`** with reason `tab-switch` (capture path). If a **Guide** is active, evaluates the **active** tab URL for `url_match` steps.
 
 ## Content script: when it captures
 
@@ -77,4 +91,5 @@ Extraction is **heuristic**; the app may still scrub or dedupe on ingest.
 ## Related repo docs
 
 - `docs/milestone-3-chrome-extension-architecture.md` — product/architecture context for M3.
-- Electron implementation: `src/main/browserBridge.ts` (`/extension/bootstrap`, `handshake`, `capture`, health).
+- `docs/vijia_guide_mode_milestone_2.md` — Guide Mode product brief.
+- Electron implementation: `src/main/browserBridge.ts` (`/extension/bootstrap`, `handshake`, `capture`, **`/extension/guide-plan`**, health).

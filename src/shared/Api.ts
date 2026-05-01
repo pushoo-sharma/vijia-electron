@@ -23,10 +23,13 @@ export type ClaudeProxyMessage = {
 };
 
 /**
- * claude-proxy JSON body — only `proactive`, `max_tokens`, and `messages` (same shape as the working curl).
+ * claude-proxy JSON body — `proactive`, optional `guide`, `max_tokens`, and `messages`
+ * (same family as the working curl; add `guide: true` for Guide Mode plans).
  */
 export type ClaudeProxyRequest = {
   proactive: boolean;
+  /** When true, proxy returns a JSON array of guide steps (see Guide Mode). */
+  guide?: boolean;
   max_tokens: number;
   messages: ClaudeProxyMessage[];
 };

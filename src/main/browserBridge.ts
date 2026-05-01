@@ -14,12 +14,16 @@ import type {
   BrowserBridgeStatus,
   BrowserCaptureEnvelope,
   BrowserExtensionCaptureRequest,
-  BrowserSite
+  BrowserSite,
+  GuideStep
 } from '../shared/browserBridge'
 import {
   buildBrowserCaptureDedupeKey,
   normalizeBrowserExtract
 } from './text-extraction'
+import { getSupabaseClientEnv } from './supabaseEnv'
+import { isMainProcessDebugMode } from './debugMode'
+import api, { type ClaudeProxyRequest } from '../shared/Api'
 
 const DEFAULT_BRIDGE_PORT = 45731
 const MAX_REQUEST_BYTES = 256 * 1024
@@ -230,6 +234,182 @@ function isHandshakeRequest(value: unknown): value is BrowserBridgeHandshakeRequ
   return typeof payload.token === 'string'
 }
 
+const GUIDE_CLAUDE_MAX_TOKENS = 2048
+
+function isGuidePlanRequest(
+  value: unknown
+): value is { sessionToken: string; goal: string } {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+  const p = value as { sessionToken?: unknown; goal?: unknown }
+  return (
+    typeof p.sessionToken === 'string' &&
+    p.sessionToken.length > 0 &&
+    typeof p.goal === 'string' &&
+    p.goal.trim().length > 0
+  )
+}
+
+function isGuideStep(value: unknown): value is GuideStep {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+  const o = value as Record<string, unknown>
+  if (typeof o.instruction !== 'string' || o.instruction.trim() === '') {
+    return false
+  }
+  if (o.detection_type !== 'url_match' && o.detection_type !== 'manual_advance') {
+    return false
+  }
+  if (o.match_value !== null && typeof o.match_value !== 'string') {
+    return false
+  }
+  return true
+}
+
+function extractJsonArrayFromProxyData(data: unknown): unknown[] | null {
+  if (Array.isArray(data)) {
+    return data
+  }
+  if (data && typeof data === 'object') {
+    const d = data as Record<string, unknown>
+    if (Array.isArray(d.steps)) {
+      return d.steps
+    }
+    if (Array.isArray(d.data)) {
+      return d.data
+    }
+    if (typeof d.content === 'string') {
+      try {
+        return extractJsonArrayFromProxyData(JSON.parse(d.content) as unknown)
+      } catch {
+        // ignore
+      }
+    }
+    const c0 = d.content
+    if (Array.isArray(c0) && c0[0] && typeof c0[0] === 'object' && c0[0] !== null) {
+      const t = (c0[0] as { text?: unknown }).text
+      if (typeof t === 'string') {
+        try {
+          return extractJsonArrayFromProxyData(JSON.parse(t) as unknown)
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+  if (typeof data === 'string') {
+    try {
+      return extractJsonArrayFromProxyData(JSON.parse(data) as unknown)
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
+function parseGuideStepsFromProxyBody(data: unknown): GuideStep[] | null {
+  const arr = extractJsonArrayFromProxyData(data)
+  if (!arr || arr.length === 0) {
+    return null
+  }
+  const out: GuideStep[] = []
+  for (const item of arr) {
+    if (!isGuideStep(item)) {
+      return null
+    }
+    if (item.detection_type === 'url_match') {
+      if (typeof item.match_value !== 'string' || !item.match_value.trim()) {
+        return null
+      }
+    }
+    out.push({
+      instruction: item.instruction.trim(),
+      detection_type: item.detection_type,
+      match_value: item.match_value
+    })
+  }
+  return out
+}
+
+async function handleGuidePlan(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  let body: unknown
+  try {
+    body = await readJsonBody(req)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'invalid-body'
+    writeJson(res, message === 'payload-too-large' ? 413 : 400, {
+      ok: false,
+      error: message
+    })
+    return
+  }
+
+  if (!isGuidePlanRequest(body) || !hasValidToken(body.sessionToken)) {
+    writeJson(res, 401, {
+      ok: false,
+      error: 'invalid-request'
+    })
+    return
+  }
+
+  if (!getSupabaseClientEnv()) {
+    writeJson(res, 503, {
+      ok: false,
+      error: 'supabase-not-configured',
+      detail: 'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY for the app.'
+    })
+    return
+  }
+
+  const goal = body.goal.trim()
+  const requestBody: ClaudeProxyRequest = {
+    proactive: false,
+    guide: true,
+    max_tokens: GUIDE_CLAUDE_MAX_TOKENS,
+    messages: [{ role: 'user', content: goal }]
+  }
+
+  try {
+    if (isMainProcessDebugMode()) {
+      console.log('[Vijia][debug] guide-plan claude-proxy request:', requestBody)
+    }
+    const resProxy = await api.claudeProxy(requestBody)
+    if (resProxy.status < 200 || resProxy.status >= 300) {
+      writeJson(res, 502, {
+        ok: false,
+        error: 'claude-proxy-error',
+        detail: `HTTP ${resProxy.status}`
+      })
+      return
+    }
+    const raw: unknown = resProxy.data
+    if (isMainProcessDebugMode()) {
+      console.log('[Vijia][debug] guide-plan claude-proxy raw response:', raw)
+    }
+    const steps = parseGuideStepsFromProxyBody(raw)
+    if (!steps || steps.length === 0) {
+      writeJson(res, 422, {
+        ok: false,
+        error: 'invalid-guide-response',
+        detail: 'Expected a non-empty JSON array of steps with instruction, detection_type, and match_value.'
+      })
+      return
+    }
+    writeJson(res, 200, { ok: true, steps })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    if (isMainProcessDebugMode()) {
+      console.warn('[Vijia] guide-plan:', msg)
+    }
+    writeJson(res, 500, { ok: false, error: 'internal-error', detail: msg })
+  }
+}
+
 function getHealthResponse(): BrowserBridgeHealthResponse {
   return {
     ok: bridgeStatus.running,
@@ -404,6 +584,11 @@ async function handleBridgeRequest(
 
   if (method === 'POST' && url.pathname === '/extension/capture') {
     await handleCapture(req, res)
+    return
+  }
+
+  if (method === 'POST' && url.pathname === '/extension/guide-plan') {
+    await handleGuidePlan(req, res)
     return
   }
 

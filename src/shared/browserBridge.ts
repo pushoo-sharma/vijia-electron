@@ -57,3 +57,29 @@ export type BrowserCaptureEnvelope = {
   dedupeKey: string
   payload: BrowserExtensionCaptureRequest
 }
+
+export type GuideDetectionType = 'url_match' | 'manual_advance'
+
+export type GuideStep = {
+  instruction: string
+  detection_type: GuideDetectionType
+  match_value: string | null
+}
+
+export type ExtensionGuidePlanRequest = {
+  sessionToken: string
+  goal: string
+}
+
+export type ExtensionGuidePlanSuccess = {
+  ok: true
+  steps: GuideStep[]
+}
+
+export type ExtensionGuidePlanError = {
+  ok: false
+  error: string
+  detail?: string
+}
+
+export type ExtensionGuidePlanResponse = ExtensionGuidePlanSuccess | ExtensionGuidePlanError

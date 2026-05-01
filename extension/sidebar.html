@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vijia Guide</title>
+    <link rel="stylesheet" href="sidebar.css" />
+  </head>
+  <body>
+    <div class="vijia-root" id="root">
+      <header class="vijia-header">
+        <span class="vijia-logo" aria-hidden="true">V</span>
+        <h1 class="vijia-title">Guide</h1>
+      </header>
+
+      <div id="panel-goal" class="panel">
+        <label class="label" for="goal-input">What do you want to do?</label>
+        <div class="goal-wrap">
+          <div class="goal-circle">
+            <textarea
+              id="goal-input"
+              class="goal-input"
+              rows="3"
+              maxlength="2000"
+              placeholder="e.g. Help me set up an Obsidian vault"
+            ></textarea>
+          </div>
+        </div>
+        <p id="goal-hint" class="hint">Requires Vijia running — goal is sent via the local bridge to Claude.</p>
+        <button type="button" class="btn primary" id="btn-start">Start guide</button>
+        <p id="error-global" class="error" hidden></p>
+      </div>
+
+      <div id="panel-run" class="panel" hidden>
+        <p id="run-goal" class="run-goal" title=""></p>
+        <p class="progress" id="run-progress" aria-live="polite">Step 1 of 1</p>
+
+        <ul id="completed-list" class="completed-list" aria-label="Completed steps"></ul>
+
+        <div
+          class="current-card"
+          id="current-wrap"
+        >
+          <p id="current-instruction" class="current-instruction" aria-live="assertive">
+            &nbsp;
+          </p>
+        </div>
+
+        <p id="correction" class="correction" hidden></p>
+        <p id="trouble" class="trouble" hidden></p>
+
+        <div class="actions" id="actions">
+          <button type="button" class="btn secondary" id="btn-done" hidden>Done</button>
+          <button type="button" class="btn secondary" id="btn-skip" hidden>Skip this step</button>
+          <button type="button" class="btn danger" id="btn-stop-trouble" hidden>Stop guide</button>
+        </div>
+
+        <div class="footer-actions">
+          <button type="button" class="btn text" id="btn-stop">Stop guide</button>
+        </div>
+      </div>
+
+      <div id="panel-done" class="panel" hidden>
+        <p class="complete-msg">All steps complete.</p>
+        <p id="done-goal" class="run-goal" title=""></p>
+        <button type="button" class="btn primary" id="btn-new">New goal</button>
+      </div>
+
+      <div
+        class="load-overlay"
+        id="load-overlay"
+        hidden
+        aria-busy="true"
+        aria-live="polite"
+        aria-label="Agent is generating a guide"
+      >
+        <div class="agent-card">
+          <div class="agent-card-top">
+            <div class="agent-avatar" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="agent-avatar-icon">
+                <path
+                  d="M12 2.5L13.6 8.1L19.2 6.4L16.4 11.3L22 12L16.4 12.7L19.2 17.6L13.6 15.9L12 21.5L10.4 15.9L4.8 17.6L7.6 12.7L2 12L7.6 11.3L4.8 6.4L10.4 8.1L12 2.5Z"
+                  fill="url(#ag)"
+                />
+                <defs>
+                  <linearGradient id="ag" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#a78bfa" />
+                    <stop offset="1" stop-color="#22d3ee" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div class="agent-card-titles">
+              <div class="agent-title-row">
+                <span class="agent-title">Agent</span>
+                <span class="agent-pill">Generating</span>
+              </div>
+              <p class="agent-status">Planning your guide</p>
+            </div>
+            <div class="agent-loader" aria-hidden="true">
+              <span class="agent-loader-ring"></span>
+            </div>
+          </div>
+          <p class="load-hint">Requires Vijia on this machine. If this stays here, the app may be off or the bridge URL is wrong.</p>
+          <button type="button" class="btn text load-cancel" id="btn-cancel-load">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="sidebar.js"></script>
+  </body>
+</html>
