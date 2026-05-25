@@ -6,6 +6,7 @@ import path from 'node:path'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { appendSessionLogNote } from './session-log'
 import { getVijiaStorageRoot } from './vijiaStorage'
+import { getScreenpipeVisibleText, isScreenpipeAvailable } from './screenpipe'
 import { IPC_CHANNELS } from '../shared/ipcChannels'
 import type {
   BrowserBridgeHandshakeRequest,
@@ -235,6 +236,32 @@ function isHandshakeRequest(value: unknown): value is BrowserBridgeHandshakeRequ
 }
 
 const GUIDE_CLAUDE_MAX_TOKENS = 2048
+let hasLoggedScreenpipeStatus = false
+
+type ActiveWindowModule = {
+  getActiveWindow: () => Promise<{ title?: string | null } | null>
+}
+
+let activeWindowModulePromise: Promise<ActiveWindowModule | null> | null = null
+
+function getActiveWindowModule(): Promise<ActiveWindowModule | null> {
+  if (activeWindowModulePromise) {
+    return activeWindowModulePromise
+  }
+  const dynamicImport = new Function(
+    'm',
+    'return import(m)'
+  ) as (moduleName: string) => Promise<unknown>
+  activeWindowModulePromise = dynamicImport('node-active-window')
+    .then((mod) => {
+      const m = mod as unknown as {
+        default?: ActiveWindowModule
+      } & ActiveWindowModule
+      return (m.default ?? m) || null
+    })
+    .catch(() => null)
+  return activeWindowModulePromise
+}
 
 function isGuidePlanRequest(
   value: unknown
@@ -259,10 +286,29 @@ function isGuideStep(value: unknown): value is GuideStep {
   if (typeof o.instruction !== 'string' || o.instruction.trim() === '') {
     return false
   }
-  if (o.detection_type !== 'url_match' && o.detection_type !== 'manual_advance') {
+  if (
+    o.detection_type !== 'url_match' &&
+    o.detection_type !== 'title_match' &&
+    o.detection_type !== 'screen_text_match' &&
+    o.detection_type !== 'manual_advance'
+  ) {
     return false
   }
   if (o.match_value !== null && typeof o.match_value !== 'string') {
+    return false
+  }
+  if (
+    o.screen_text !== undefined &&
+    o.screen_text !== null &&
+    typeof o.screen_text !== 'string'
+  ) {
+    return false
+  }
+  if (
+    o.advance_when !== undefined &&
+    o.advance_when !== 'appears' &&
+    o.advance_when !== 'disappears'
+  ) {
     return false
   }
   return true
@@ -319,18 +365,68 @@ function parseGuideStepsFromProxyBody(data: unknown): GuideStep[] | null {
     if (!isGuideStep(item)) {
       return null
     }
-    if (item.detection_type === 'url_match') {
+    if (item.detection_type === 'url_match' || item.detection_type === 'title_match') {
       if (typeof item.match_value !== 'string' || !item.match_value.trim()) {
+        return null
+      }
+    }
+    if (item.detection_type === 'screen_text_match') {
+      if (typeof item.screen_text !== 'string' || !item.screen_text.trim()) {
+        return null
+      }
+      if (item.advance_when !== 'appears' && item.advance_when !== 'disappears') {
         return null
       }
     }
     out.push({
       instruction: item.instruction.trim(),
       detection_type: item.detection_type,
-      match_value: item.match_value
+      match_value: item.match_value,
+      screen_text:
+        typeof item.screen_text === 'string' ? item.screen_text.trim() : null,
+      advance_when: item.advance_when
     })
   }
   return out
+}
+
+async function handleGuideSignal(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  const token = req.headers['x-vijia-token']
+  const payloadToken =
+    typeof token === 'string'
+      ? token
+      : Array.isArray(token)
+        ? token[0]
+        : undefined
+  if (!hasValidToken(payloadToken)) {
+    writeJson(res, 401, { ok: false, error: 'invalid-token' })
+    return
+  }
+
+  const activeWindow = await getActiveWindowModule()
+  const windowInfo = activeWindow ? await activeWindow.getActiveWindow() : null
+  const activeWindowTitle =
+    typeof windowInfo?.title === 'string' ? windowInfo.title : null
+
+  const available = await isScreenpipeAvailable()
+  if (!hasLoggedScreenpipeStatus) {
+    hasLoggedScreenpipeStatus = true
+    console.log(
+      `[Vijia] ScreenPipe ${available ? 'available' : 'not available'} at startup probe`
+    )
+  }
+  const screenText = available ? await getScreenpipeVisibleText() : null
+  writeJson(res, 200, {
+    ok: true,
+    activeWindowTitle,
+    screenpipe: {
+      available,
+      text: screenText
+    }
+  })
 }
 
 async function handleGuidePlan(
@@ -589,6 +685,11 @@ async function handleBridgeRequest(
 
   if (method === 'POST' && url.pathname === '/extension/guide-plan') {
     await handleGuidePlan(req, res)
+    return
+  }
+
+  if (method === 'GET' && url.pathname === '/extension/guide-signal') {
+    await handleGuideSignal(req, res)
     return
   }
 

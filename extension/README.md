@@ -93,3 +93,9 @@ Extraction is **heuristic**; the app may still scrub or dedupe on ingest.
 - `docs/milestone-3-chrome-extension-architecture.md` — product/architecture context for M3.
 - `docs/vijia_guide_mode_milestone_2.md` — Guide Mode product brief.
 - Electron implementation: `src/main/browserBridge.ts` (`/extension/bootstrap`, `handshake`, `capture`, **`/extension/guide-plan`**, health).
+
+## Milestone 4 detection additions
+
+- `title_match`: polled via `GET /extension/guide-signal`; advances when active window title contains `match_value`.
+- `screen_text_match`: polled via `GET /extension/guide-signal`; checks ScreenPipe OCR text for `screen_text`, with `advance_when: "appears" | "disappears"`.
+- If ScreenPipe or guide-signal detection is unavailable, affected steps fall back to a manual **Done** path in the sidebar.

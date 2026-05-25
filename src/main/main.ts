@@ -9,6 +9,7 @@ import {
 } from './overlayManager'
 import { registerNotificationIpc } from './NotificationManager'
 import { startProactiveEngine, stopProactiveEngine } from './proactive-engine'
+import { isScreenpipeAvailable } from './screenpipe'
 
 function logMainStartupFlags(): void {
   console.log('[Vijia] main startup flags', {
@@ -23,6 +24,9 @@ void app.whenReady().then(() => {
   registerNotificationIpc()
   registerOverlayInputIpc()
   void startBrowserBridge()
+  void isScreenpipeAvailable().then((ok) => {
+    console.log(`[Vijia] ScreenPipe ${ok ? 'detected' : 'not detected'} on startup`)
+  })
   startProactiveEngine()
   getOrCreateOverlayWindow()
   createTray()

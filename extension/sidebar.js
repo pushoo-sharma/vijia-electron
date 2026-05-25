@@ -108,7 +108,10 @@ function applyStateToUi(s) {
     }
 
     const isManual = cur && cur.detection_type === 'manual_advance'
-    const showDone = isManual
+    const fallbackManual =
+      !!s.detectionUnavailable ||
+      (cur && cur.detection_type === 'screen_text_match')
+    const showDone = isManual || fallbackManual
     el.btnDone.hidden = !showDone
     if (s.showSkipHelper) {
       el.btnSkip.hidden = false

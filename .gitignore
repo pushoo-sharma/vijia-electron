@@ -13,3 +13,4 @@ Thumbs.db
 
 # Local browser bridge (session token — do not commit)
 .vijia/
+public/
