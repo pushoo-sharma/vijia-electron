@@ -129,7 +129,11 @@ export function Overlay(): ReactElement {
           />
         ) : null}
         <PromptBox open={isOpen} onClose={closeOverlay} rootRef={promptRef} />
-        <Circle ref={circleRef} onTogglePrompt={toggleOverlay} />
+        <Circle
+          ref={circleRef}
+          guideMode={guideMode}
+          onTogglePrompt={toggleOverlay}
+        />
       </div>
     </div>
   )

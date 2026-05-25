@@ -1,18 +1,18 @@
 :root {
-  --bg: #f4eefc;
-  --card: rgba(255, 255, 255, 0.86);
-  --card-strong: rgba(248, 244, 255, 0.95);
-  --text: #22202c;
-  --muted: #5f5873;
-  --accent: #6e4eb6;
-  --accent-2: #8e70cf;
-  --good: #22c55e;
+  --bg: var(--vijia-bg);
+  --card: var(--vijia-card);
+  --card-strong: var(--vijia-card-strong);
+  --text: var(--vijia-text);
+  --muted: var(--vijia-muted);
+  --accent: var(--vijia-purple-deep);
+  --accent-2: var(--vijia-purple-mid);
+  --good: var(--vijia-green);
   --bad: #ef4444;
-  --line: rgba(110, 78, 182, 0.18);
-  --shadow: 0 20px 44px rgba(34, 32, 44, 0.16);
-  --radius: 18px;
+  --line: var(--vijia-line);
+  --shadow: var(--vijia-shadow);
+  --radius: var(--vijia-radius);
+  font-family: var(--vijia-font);
   font-size: 14px;
-  font-family: "Avenir Next", "Nunito Sans", "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
 }
@@ -28,10 +28,11 @@
 body {
   margin: 0;
   min-height: 100%;
+  font-family: var(--vijia-font);
   background:
-    radial-gradient(circle at 20% 0%, rgba(110, 78, 182, 0.24), transparent 34%),
-    radial-gradient(circle at 95% 12%, rgba(142, 112, 207, 0.16), transparent 28%),
-    linear-gradient(180deg, #f7f2ff 0%, #efe7fb 100%);
+    radial-gradient(circle at 20% 0%, rgba(175, 175, 230, 0.35), transparent 34%),
+    radial-gradient(circle at 95% 12%, rgba(110, 78, 182, 0.12), transparent 28%),
+    linear-gradient(180deg, var(--vijia-lavender) 0%, var(--vijia-bg) 100%);
 }
 
 .vijia-root {
@@ -54,18 +55,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: linear-gradient(145deg, var(--accent), var(--accent-2));
-  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.32);
+  background: var(--vijia-lavender);
+  box-shadow: 0 8px 22px rgba(34, 34, 45, 0.12);
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .vijia-logo-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.vijia-logo--guide {
+  box-shadow:
+    0 0 0 3px var(--vijia-green),
+    0 8px 22px rgba(34, 197, 94, 0.28);
 }
 
 .vijia-title {
@@ -112,9 +120,9 @@ body {
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(circle at top left, rgba(124, 58, 237, 0.14), transparent 38%),
-    rgba(15, 23, 42, 0.72);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    radial-gradient(circle at top left, rgba(175, 175, 230, 0.35), transparent 42%),
+    var(--vijia-bubble);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .goal-input {
@@ -122,7 +130,7 @@ body {
   height: 100%;
   border: 0;
   background: transparent;
-  color: var(--text);
+  color: #f4f0ff;
   font: inherit;
   line-height: 1.4;
   resize: none;
@@ -132,7 +140,7 @@ body {
 }
 
 .goal-input::placeholder {
-  color: rgba(148, 163, 184, 0.72);
+  color: rgba(197, 186, 220, 0.72);
 }
 
 .hint {
@@ -211,13 +219,13 @@ body {
 
 .current-card {
   background:
-    linear-gradient(135deg, rgba(124, 58, 237, 0.16), rgba(6, 182, 212, 0.08)),
+    linear-gradient(135deg, rgba(175, 175, 230, 0.22), rgba(110, 78, 182, 0.08)),
     var(--card-strong);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 16px 14px;
   min-height: 3.2rem;
-  border-left: 3px solid #a78bfa;
+  border-left: 3px solid var(--vijia-purple);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -242,14 +250,14 @@ body {
 }
 
 .correction {
-  background: rgba(6, 182, 212, 0.12);
-  color: #a5f3fc;
+  background: rgba(175, 175, 230, 0.18);
+  color: var(--text);
   padding: 8px 10px;
   border-radius: 12px;
   font-size: 0.8rem;
   line-height: 1.4;
   margin: 0;
-  border: 1px solid rgba(6, 182, 212, 0.3);
+  border: 1px solid var(--vijia-line);
 }
 
 .trouble {
@@ -302,9 +310,9 @@ body {
 }
 
 .btn.secondary {
-  background: rgba(15, 23, 42, 0.72);
-  color: var(--text);
-  border: 1px solid var(--line);
+  background: var(--vijia-bubble);
+  color: #f4f0ff;
+  border: 1px solid var(--vijia-bubble-border);
 }
 
 .btn.danger {
@@ -342,8 +350,8 @@ body {
   padding: 16px 14px;
   gap: 0;
   background:
-    radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.08), transparent 45%),
-    rgba(24, 20, 34, 0.78);
+    radial-gradient(circle at 50% 0%, rgba(175, 175, 230, 0.2), transparent 45%),
+    rgba(34, 34, 45, 0.82);
   z-index: 2;
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -353,21 +361,11 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1f1b2c;
-    --card: rgba(39, 33, 55, 0.86);
-    --card-strong: rgba(47, 38, 67, 0.95);
-    --text: #f4f0ff;
-    --muted: #c5badc;
-    --line: rgba(197, 186, 220, 0.2);
-    --shadow: 0 20px 44px rgba(0, 0, 0, 0.3);
-  }
-
   body {
     background:
       radial-gradient(circle at 20% 0%, rgba(110, 78, 182, 0.28), transparent 32%),
       radial-gradient(circle at 95% 12%, rgba(142, 112, 207, 0.16), transparent 26%),
-      linear-gradient(180deg, #1f1b2c 0%, #161321 100%);
+      linear-gradient(180deg, var(--vijia-bg) 0%, #161321 100%);
   }
 }
 
@@ -381,9 +379,9 @@ body {
   flex-direction: column;
   gap: 14px;
   padding: 14px 14px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: linear-gradient(165deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.9) 100%);
+  border-radius: 16px;
+  border: 1px solid var(--vijia-bubble-border);
+  background: var(--vijia-bubble);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -401,15 +399,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.12);
+  border-radius: 50%;
+  background: var(--vijia-lavender);
+  border: 1px solid var(--vijia-line);
+  overflow: hidden;
 }
 
-.agent-avatar-icon {
-  width: 22px;
-  height: 22px;
+.agent-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 
@@ -433,7 +432,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--vijia-muted);
 }
 
 .agent-pill {
@@ -441,9 +440,9 @@ body {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #5eead4;
-  background: rgba(6, 182, 212, 0.12);
-  border: 1px solid rgba(6, 182, 212, 0.28);
+  color: var(--vijia-green-deep);
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(34, 197, 94, 0.35);
   border-radius: 6px;
   padding: 2px 7px;
   line-height: 1.2;
@@ -454,8 +453,7 @@ body {
   font-size: 0.88rem;
   font-weight: 500;
   line-height: 1.35;
-  font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
-  color: #e2e8f0;
+  color: #f4f0ff;
 }
 
 /* Compact ring loader (IDE-style), not a full-panel shimmer. */
@@ -474,7 +472,7 @@ body {
   width: 20px;
   height: 20px;
   border: 2px solid rgba(148, 163, 184, 0.2);
-  border-top-color: #a78bfa;
+  border-top-color: var(--vijia-purple);
   border-radius: 50%;
   animation: agent-loader-spin 0.7s linear infinite;
 }
@@ -509,7 +507,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .agent-loader-ring {
     animation: none;
-    border-color: rgba(167, 139, 250, 0.45);
-    border-top-color: rgba(167, 139, 250, 0.45);
+    border-color: rgba(175, 175, 230, 0.45);
+    border-top-color: rgba(175, 175, 230, 0.45);
   }
 }

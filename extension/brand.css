@@ -1,0 +1,67 @@
+/* Vijia brand tokens — from brandbook / logo SVG */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("fonts/PlusJakartaSans-VariableFont_wght.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf") format("truetype");
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --vijia-font: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --vijia-lavender: #eeeff6;
+  --vijia-lavender-deep: #e8e6f4;
+  --vijia-purple: #afafe6;
+  --vijia-purple-deep: #6e4eb6;
+  --vijia-purple-mid: #8e70cf;
+  --vijia-charcoal: #22222d;
+  --vijia-green: #22c55e;
+  --vijia-green-deep: #16a34a;
+  --vijia-bg: #f4eefc;
+  --vijia-card: rgba(255, 255, 255, 0.88);
+  --vijia-card-strong: rgba(248, 244, 255, 0.96);
+  --vijia-text: var(--vijia-charcoal);
+  --vijia-muted: #5f5873;
+  --vijia-line: rgba(175, 175, 230, 0.45);
+  --vijia-bubble: #2a2638;
+  --vijia-bubble-border: rgba(175, 175, 230, 0.22);
+  --vijia-shadow: 0 20px 44px rgba(34, 34, 45, 0.14);
+  --vijia-radius: 18px;
+}
+
+html {
+  font-family: var(--vijia-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--vijia-font);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --vijia-bg: #1f1b2c;
+    --vijia-lavender-deep: #2a2438;
+    --vijia-card: rgba(39, 33, 55, 0.9);
+    --vijia-card-strong: rgba(47, 38, 67, 0.96);
+    --vijia-text: #f4f0ff;
+    --vijia-muted: #c5badc;
+    --vijia-line: rgba(197, 186, 220, 0.22);
+    --vijia-bubble: #1a1724;
+    --vijia-bubble-border: rgba(175, 175, 230, 0.18);
+    --vijia-shadow: 0 20px 44px rgba(0, 0, 0, 0.32);
+  }
+}

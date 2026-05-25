@@ -60,6 +60,7 @@ export default defineConfig(({ mode }) => {
     }
   },
   renderer: {
+    publicDir: resolve('public'),
     plugins: [react(), electronRendererStripCrossorigin()],
     build: {
       rollupOptions: {

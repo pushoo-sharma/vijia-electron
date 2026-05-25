@@ -4,11 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vijia Bridge Settings</title>
+    <link
+      rel="preload"
+      href="fonts/PlusJakartaSans-VariableFont_wght.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link rel="stylesheet" href="brand.css" />
     <style>
       body {
-        font-family: "Segoe UI", sans-serif;
         margin: 24px;
-        color: #111827;
+        color: var(--vijia-text);
+        background: linear-gradient(180deg, var(--vijia-lavender) 0%, var(--vijia-bg) 100%);
+        min-height: 100vh;
       }
 
       main {
@@ -28,21 +37,33 @@
         box-sizing: border-box;
       }
 
+      input {
+        border-radius: 10px;
+        border: 1px solid var(--vijia-line);
+        background: var(--vijia-card);
+      }
+
       button {
         margin-top: 20px;
         padding: 10px 16px;
         font: inherit;
         cursor: pointer;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--vijia-purple-deep), var(--vijia-purple-mid));
+        color: #fff;
+        border: none;
+        font-weight: 600;
       }
 
       #status {
         margin-top: 16px;
-        color: #065f46;
+        color: var(--vijia-green-deep);
       }
 
       code {
-        background: #f3f4f6;
+        background: rgba(175, 175, 230, 0.25);
         padding: 2px 6px;
+        border-radius: 4px;
       }
     </style>
   </head>
@@ -59,7 +80,7 @@
 
       <div
         class="row-debug"
-        style="margin: 20px 0; padding: 12px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb"
+        style="margin: 20px 0; padding: 12px; background: var(--vijia-card); border-radius: 12px; border: 1px solid var(--vijia-line)"
       >
         <label style="display: flex; align-items: flex-start; gap: 10px; font-weight: 600; margin: 0; cursor: pointer">
           <input
@@ -70,7 +91,7 @@
           <span>
             Debug: show on-page overlay
             <span
-              style="display: block; font-weight: 400; color: #6b7280; font-size: 13px; margin-top: 4px"
+              style="display: block; font-weight: 400; color: var(--vijia-muted); font-size: 13px; margin-top: 4px"
             >
               On supported sites, logs capture scheduling, extraction, and bridge posts. Development only; reload chat
               tabs after toggling.
@@ -81,7 +102,7 @@
 
       <label for="sessionToken">Session Token</label>
       <input id="sessionToken" type="text" spellcheck="false" autocomplete="off" />
-      <p style="font-size: 14px; color: #374151; line-height: 1.5">
+      <p style="font-size: 14px; color: var(--vijia-muted); line-height: 1.5">
         Required. With Vijia running, open <code>.vijia/browser-extension-bridge.json</code>
         in your project folder (shown in the dev console as “Extension bridge config”),
         copy the <code>sessionToken</code> value, paste it here, and Save. If the badge

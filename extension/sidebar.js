@@ -35,6 +35,10 @@ function applyStateToUi(s) {
     return
   }
   const prev = lastSnapshot
+  const logo = document.getElementById('vijia-logo')
+  if (logo) {
+    logo.classList.toggle('vijia-logo--guide', !!s.active)
+  }
 
   if (s.isLoading) {
     el.loadOverlay.hidden = false

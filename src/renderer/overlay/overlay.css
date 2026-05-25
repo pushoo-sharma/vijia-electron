@@ -1,26 +1,14 @@
-/* M2 layout — visual polish out of scope; functional spacing and layering only */
+@import "../brand.css";
 
-/*
- * Clear the host app status bar (~22–25px) plus margin so the FAB does not sit on it.
- * Adjust if your shell uses a taller bottom chrome.
- */
+/* M2 layout — brand-aligned spacing and layering */
+
 :root {
   --overlay-safe-bottom: 36px;
   --overlay-safe-right: 12px;
   --hub-height: 420px;
-  /*
-   * On Windows the overlay window starts 40 px above the visible screen edge so that
-   * any stray native title-bar chrome from Electron/DWM is rendered off-screen.
-   * CSS bottom/right anchoring already places the FAB in the correct visible area,
-   * but we expose the constant here for reference.
-   */
   --win32-top-bleed: 40px;
 }
 
-/*
- * Full-screen shell should not paint as a solid layer. Opacity on html/body would also
- * fade the FAB (opacity stacks); hiding html and re-showing .overlay-column avoids that.
- */
 html {
   visibility: hidden;
 }
@@ -32,9 +20,8 @@ body,
   margin: 0;
   overflow: hidden;
   background: transparent;
-  /* Let clicks pass through empty space; interactive bits use .overlay-hit */
   pointer-events: none;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .overlay-root {
@@ -51,7 +38,6 @@ body,
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  /* Flush hub → prompt → circle; 4px gap is only between cards inside .notification-hub */
   gap: 0;
   pointer-events: none;
 }
@@ -82,33 +68,41 @@ body,
 }
 
 .notification-card {
-  background: rgba(15, 23, 42, 0.92);
-  color: #f8fafc;
-  border-radius: 8px;
-  padding: 10px 12px;
-  min-width: 220px;
-  border: 2px solid transparent;
+  background: var(--vijia-bubble);
+  color: #f4f0ff;
+  border-radius: 16px;
+  padding: 12px 14px;
+  min-width: 240px;
+  border: 1px solid var(--vijia-bubble-border);
+  box-shadow: 0 14px 36px rgba(34, 34, 45, 0.28);
 }
 
 .notification-card--guide {
-  border-color: #14b8a6;
+  border-color: var(--vijia-green);
+  box-shadow:
+    0 0 0 1px rgba(34, 197, 94, 0.35),
+    0 14px 36px rgba(34, 34, 45, 0.28);
 }
 
 .notification-card__context {
-  font-size: 0.75rem;
-  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--vijia-purple);
   margin-bottom: 6px;
 }
 
 .notification-card__code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.75rem;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.28);
   padding: 8px;
-  border-radius: 4px;
+  border-radius: 10px;
   margin-bottom: 8px;
   white-space: pre-wrap;
   word-break: break-word;
+  border: 1px solid var(--vijia-bubble-border);
 }
 
 .notification-card__body {
@@ -137,24 +131,31 @@ body,
 
 .btn-guide {
   appearance: none;
-  border: 1px solid #14b8a6;
-  background: transparent;
-  color: #5eead4;
+  border: 1px solid var(--vijia-green);
+  background: rgba(34, 197, 94, 0.12);
+  color: #bbf7d0;
   font: inherit;
   font-size: 0.8125rem;
-  padding: 4px 12px;
-  border-radius: 6px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
   cursor: pointer;
 }
 
 .btn-guide:hover {
-  background: rgba(20, 184, 166, 0.15);
+  background: rgba(34, 197, 94, 0.22);
+}
+
+.btn-guide[aria-pressed="true"] {
+  background: var(--vijia-green);
+  color: var(--vijia-charcoal);
+  border-color: var(--vijia-green-deep);
 }
 
 .link-dismiss {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: var(--vijia-muted);
   font: inherit;
   font-size: 0.8125rem;
   cursor: pointer;
@@ -163,29 +164,44 @@ body,
 }
 
 .link-dismiss:hover {
-  color: #cbd5e1;
+  color: #f4f0ff;
 }
 
 .vijia-circle {
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, #5eead4 0%, #0d9488 55%, #042f2e 100%);
-  box-shadow: 0 0 16px rgba(45, 212, 191, 0.65);
+  background: var(--vijia-lavender);
+  box-shadow:
+    0 0 0 2px rgba(175, 175, 230, 0.5),
+    0 8px 24px rgba(34, 34, 45, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   border: none;
   padding: 0;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
 }
 
-.vijia-circle__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #ecfdf5;
-  box-shadow: 0 0 10px #a7f3d0;
+.vijia-circle:hover {
+  box-shadow:
+    0 0 0 2px var(--vijia-purple),
+    0 10px 28px rgba(110, 78, 182, 0.28);
+}
+
+.vijia-circle--guide {
+  box-shadow:
+    0 0 0 3px var(--vijia-green),
+    0 10px 28px rgba(34, 197, 94, 0.35);
+}
+
+.vijia-circle__face {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
   pointer-events: none;
 }
 
@@ -193,10 +209,12 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--vijia-bubble);
+  border: 1px solid var(--vijia-bubble-border);
   border-radius: 999px;
   padding: 6px 6px 6px 14px;
   min-width: 280px;
+  box-shadow: 0 12px 32px rgba(34, 34, 45, 0.28);
 }
 
 .prompt-box__input {
@@ -204,10 +222,14 @@ body,
   min-width: 0;
   background: transparent;
   border: none;
-  color: #f8fafc;
+  color: #f4f0ff;
   font: inherit;
   font-size: 0.875rem;
   outline: none;
+}
+
+.prompt-box__input::placeholder {
+  color: var(--vijia-muted);
 }
 
 .prompt-box__send {
@@ -215,8 +237,8 @@ body,
   height: 36px;
   border-radius: 50%;
   border: none;
-  background: #14b8a6;
-  color: #042f2e;
+  background: linear-gradient(135deg, var(--vijia-purple-deep), var(--vijia-purple-mid));
+  color: #fff;
   cursor: pointer;
   display: flex;
   align-items: center;
