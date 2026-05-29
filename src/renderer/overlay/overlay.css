@@ -7,6 +7,7 @@
   --overlay-safe-right: 12px;
   --hub-height: 420px;
   --win32-top-bleed: 40px;
+  --good-rgb: 120, 210, 165;
 }
 
 html {
@@ -21,7 +22,7 @@ body,
   overflow: hidden;
   background: transparent;
   pointer-events: none;
-  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--vijia-font);
 }
 
 .overlay-root {
@@ -68,20 +69,20 @@ body,
 }
 
 .notification-card {
-  background: var(--vijia-bubble);
-  color: #f4f0ff;
+  background: var(--vijia-card-strong);
+  color: var(--vijia-text);
   border-radius: 16px;
   padding: 12px 14px;
   min-width: 240px;
   border: 1px solid var(--vijia-bubble-border);
-  box-shadow: 0 14px 36px rgba(34, 34, 45, 0.28);
+  box-shadow: var(--vijia-shadow);
 }
 
 .notification-card--guide {
   border-color: var(--vijia-green);
   box-shadow:
-    0 0 0 1px rgba(34, 197, 94, 0.35),
-    0 14px 36px rgba(34, 34, 45, 0.28);
+    0 0 0 1px rgba(var(--good-rgb), 0.35),
+    var(--vijia-shadow);
 }
 
 .notification-card__context {
@@ -89,20 +90,20 @@ body,
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--vijia-purple);
+  color: var(--vijia-purple-mid);
   margin-bottom: 6px;
 }
 
 .notification-card__code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.75rem;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(34, 34, 45, 0.06);
   padding: 8px;
   border-radius: 10px;
   margin-bottom: 8px;
   white-space: pre-wrap;
   word-break: break-word;
-  border: 1px solid var(--vijia-bubble-border);
+  border: 1px solid var(--vijia-line);
 }
 
 .notification-card__body {
@@ -132,8 +133,8 @@ body,
 .btn-guide {
   appearance: none;
   border: 1px solid var(--vijia-green);
-  background: rgba(34, 197, 94, 0.12);
-  color: #bbf7d0;
+  background: rgba(var(--good-rgb), 0.14);
+  color: var(--vijia-charcoal);
   font: inherit;
   font-size: 0.8125rem;
   font-weight: 600;
@@ -143,13 +144,13 @@ body,
 }
 
 .btn-guide:hover {
-  background: rgba(34, 197, 94, 0.22);
+  background: rgba(var(--good-rgb), 0.24);
 }
 
 .btn-guide[aria-pressed="true"] {
   background: var(--vijia-green);
   color: var(--vijia-charcoal);
-  border-color: var(--vijia-green-deep);
+  border-color: var(--vijia-green);
 }
 
 .link-dismiss {
@@ -164,17 +165,17 @@ body,
 }
 
 .link-dismiss:hover {
-  color: #f4f0ff;
+  color: var(--vijia-text);
 }
 
 .vijia-circle {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: var(--vijia-lavender);
+  background: var(--vijia-ice);
   box-shadow:
     0 0 0 2px rgba(175, 175, 230, 0.5),
-    0 8px 24px rgba(34, 34, 45, 0.22);
+    0 8px 24px rgba(34, 34, 45, 0.14);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,13 +189,13 @@ body,
 .vijia-circle:hover {
   box-shadow:
     0 0 0 2px var(--vijia-purple),
-    0 10px 28px rgba(110, 78, 182, 0.28);
+    0 10px 28px rgba(175, 175, 230, 0.35);
 }
 
 .vijia-circle--guide {
   box-shadow:
     0 0 0 3px var(--vijia-green),
-    0 10px 28px rgba(34, 197, 94, 0.35);
+    0 10px 28px rgba(var(--good-rgb), 0.35);
 }
 
 .vijia-circle__face {
@@ -209,12 +210,12 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--vijia-bubble);
-  border: 1px solid var(--vijia-bubble-border);
+  background: var(--vijia-card-strong);
+  border: 1px solid var(--vijia-line);
   border-radius: 999px;
   padding: 6px 6px 6px 14px;
   min-width: 280px;
-  box-shadow: 0 12px 32px rgba(34, 34, 45, 0.28);
+  box-shadow: var(--vijia-shadow);
 }
 
 .prompt-box__input {
@@ -222,7 +223,7 @@ body,
   min-width: 0;
   background: transparent;
   border: none;
-  color: #f4f0ff;
+  color: var(--vijia-text);
   font: inherit;
   font-size: 0.875rem;
   outline: none;
@@ -237,8 +238,8 @@ body,
   height: 36px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, var(--vijia-purple-deep), var(--vijia-purple-mid));
-  color: #fff;
+  background: var(--vijia-gradient-roxo);
+  color: var(--vijia-charcoal);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -248,5 +249,24 @@ body,
 }
 
 .prompt-box__send:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .notification-card__code {
+    background: rgba(0, 0, 0, 0.28);
+  }
+
+  .btn-guide {
+    color: var(--vijia-green-light);
+  }
+
+  .btn-guide[aria-pressed="true"] {
+    color: var(--vijia-charcoal);
+  }
+
+  .prompt-box {
+    background: var(--vijia-bubble);
+    border-color: var(--vijia-bubble-border);
+  }
 }

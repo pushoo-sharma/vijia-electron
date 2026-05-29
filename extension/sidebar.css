@@ -4,9 +4,10 @@
   --card-strong: var(--vijia-card-strong);
   --text: var(--vijia-text);
   --muted: var(--vijia-muted);
-  --accent: var(--vijia-purple-deep);
-  --accent-2: var(--vijia-purple-mid);
+  --accent: var(--vijia-purple);
+  --accent-2: var(--vijia-white);
   --good: var(--vijia-green);
+  --good-rgb: 120, 210, 165;
   --bad: #ef4444;
   --line: var(--vijia-line);
   --shadow: var(--vijia-shadow);
@@ -29,10 +30,7 @@ body {
   margin: 0;
   min-height: 100%;
   font-family: var(--vijia-font);
-  background:
-    radial-gradient(circle at 20% 0%, rgba(175, 175, 230, 0.35), transparent 34%),
-    radial-gradient(circle at 95% 12%, rgba(110, 78, 182, 0.12), transparent 28%),
-    linear-gradient(180deg, var(--vijia-lavender) 0%, var(--vijia-bg) 100%);
+  background: var(--vijia-gradient-gelo);
 }
 
 .vijia-root {
@@ -58,8 +56,8 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--vijia-lavender);
-  box-shadow: 0 8px 22px rgba(34, 34, 45, 0.12);
+  background: var(--vijia-ice);
+  box-shadow: 0 8px 22px rgba(34, 34, 45, 0.1);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -73,7 +71,7 @@ body {
 .vijia-logo--guide {
   box-shadow:
     0 0 0 3px var(--vijia-green),
-    0 8px 22px rgba(34, 197, 94, 0.28);
+    0 8px 22px rgba(var(--good-rgb), 0.28);
 }
 
 .vijia-title {
@@ -89,12 +87,9 @@ body {
   gap: 12px;
   padding: 16px;
   border: 1px solid var(--line);
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
-    var(--card);
+  border-radius: var(--radius);
+  background: var(--card-strong);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
 }
 
 .label {
@@ -113,16 +108,16 @@ body {
   width: 100%;
   max-width: 100%;
   border: 1px solid var(--line);
-  border-radius: 24px;
+  border-radius: 16px;
   padding: 14px;
   min-height: 132px;
   display: flex;
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(circle at top left, rgba(175, 175, 230, 0.35), transparent 42%),
-    var(--vijia-bubble);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    radial-gradient(circle at top left, rgba(175, 175, 230, 0.2), transparent 42%),
+    var(--vijia-ice);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .goal-input {
@@ -130,7 +125,7 @@ body {
   height: 100%;
   border: 0;
   background: transparent;
-  color: #f4f0ff;
+  color: var(--text);
   font: inherit;
   line-height: 1.4;
   resize: none;
@@ -140,7 +135,7 @@ body {
 }
 
 .goal-input::placeholder {
-  color: rgba(197, 186, 220, 0.72);
+  color: var(--vijia-lilac);
 }
 
 .hint {
@@ -177,7 +172,7 @@ body {
 
 .progress {
   font-size: 0.8rem;
-  color: #5f5873;
+  color: var(--muted);
   margin: 0 0 8px 0;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -201,7 +196,7 @@ body {
   line-height: 1.35;
   margin-bottom: 4px;
   text-decoration: line-through;
-  text-decoration-color: #5c6370;
+  text-decoration-color: var(--vijia-lilac);
 }
 
 .completed-list li::before {
@@ -219,14 +214,14 @@ body {
 
 .current-card {
   background:
-    linear-gradient(135deg, rgba(175, 175, 230, 0.22), rgba(110, 78, 182, 0.08)),
+    linear-gradient(135deg, rgba(175, 175, 230, 0.18), rgba(190, 190, 215, 0.08)),
     var(--card-strong);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 16px 14px;
   min-height: 3.2rem;
   border-left: 3px solid var(--vijia-purple);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .current-instruction {
@@ -242,10 +237,10 @@ body {
 
 @keyframes checkFlash {
   0% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    box-shadow: 0 0 0 0 rgba(var(--good-rgb), 0.4);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    box-shadow: 0 0 0 0 rgba(var(--good-rgb), 0);
   }
 }
 
@@ -265,8 +260,8 @@ body {
 
 .step-status--watching {
   color: var(--text);
-  border-color: rgba(34, 197, 94, 0.35);
-  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(var(--good-rgb), 0.35);
+  background: rgba(var(--good-rgb), 0.1);
 }
 
 .step-status--warn {
@@ -288,7 +283,7 @@ body {
   flex-shrink: 0;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(34, 197, 94, 0.25);
+  border: 2px solid rgba(var(--good-rgb), 0.25);
   border-top-color: var(--good);
   border-radius: 50%;
   animation: agent-loader-spin 0.7s linear infinite;
@@ -327,13 +322,13 @@ body {
 
   .step-status-ring {
     animation: none;
-    border-color: rgba(34, 197, 94, 0.45);
-    border-top-color: rgba(34, 197, 94, 0.45);
+    border-color: rgba(var(--good-rgb), 0.45);
+    border-top-color: rgba(var(--good-rgb), 0.45);
   }
 }
 
 .correction {
-  background: rgba(175, 175, 230, 0.18);
+  background: rgba(175, 175, 230, 0.14);
   color: var(--text);
   padding: 8px 10px;
   border-radius: 12px;
@@ -381,10 +376,10 @@ body {
 }
 
 .btn.primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #fff;
+  background: var(--vijia-gradient-roxo);
+  color: var(--vijia-charcoal);
   font-weight: 700;
-  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.26);
+  box-shadow: 0 14px 34px rgba(175, 175, 230, 0.35);
 }
 
 .btn.primary:disabled {
@@ -393,15 +388,15 @@ body {
 }
 
 .btn.secondary {
-  background: var(--vijia-bubble);
-  color: #f4f0ff;
-  border: 1px solid var(--vijia-bubble-border);
+  background: var(--vijia-ice-02);
+  color: var(--text);
+  border: 1px solid var(--line);
 }
 
 .btn.danger {
-  background: rgba(239, 68, 68, 0.2);
-  color: #fecaca;
-  border: 1px solid rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 .btn.text {
@@ -433,8 +428,8 @@ body {
   padding: 16px 14px;
   gap: 0;
   background:
-    radial-gradient(circle at 50% 0%, rgba(175, 175, 230, 0.2), transparent 45%),
-    rgba(34, 34, 45, 0.82);
+    radial-gradient(circle at 50% 0%, rgba(175, 175, 230, 0.15), transparent 45%),
+    rgba(240, 240, 245, 0.92);
   z-index: 2;
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -445,14 +440,37 @@ body {
 
 @media (prefers-color-scheme: dark) {
   body {
+    background: linear-gradient(180deg, var(--vijia-bg) 0%, #121018 100%);
+  }
+
+  .goal-circle {
     background:
-      radial-gradient(circle at 20% 0%, rgba(110, 78, 182, 0.28), transparent 32%),
-      radial-gradient(circle at 95% 12%, rgba(142, 112, 207, 0.16), transparent 26%),
-      linear-gradient(180deg, var(--vijia-bg) 0%, #161321 100%);
+      radial-gradient(circle at top left, rgba(175, 175, 230, 0.12), transparent 42%),
+      var(--vijia-card-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .current-card {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .btn.secondary {
+    background: #4a4a60;
+    color: var(--vijia-text);
+    border-color: var(--vijia-bubble-border);
+  }
+
+  .btn.danger {
+    color: #fecaca;
+  }
+
+  .load-overlay {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(175, 175, 230, 0.12), transparent 45%),
+      rgba(26, 26, 36, 0.92);
   }
 }
 
-/* Cursor-style “agent” generating panel */
 .agent-card {
   position: relative;
   z-index: 1;
@@ -464,8 +482,8 @@ body {
   padding: 14px 14px 10px;
   border-radius: 16px;
   border: 1px solid var(--vijia-bubble-border);
-  background: var(--vijia-bubble);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--vijia-card-strong);
+  box-shadow: var(--shadow);
 }
 
 .agent-card-top {
@@ -483,7 +501,7 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: var(--vijia-lavender);
+  background: var(--vijia-ice);
   border: 1px solid var(--vijia-line);
   overflow: hidden;
 }
@@ -523,9 +541,9 @@ body {
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--vijia-green-deep);
-  background: rgba(34, 197, 94, 0.14);
-  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: var(--vijia-ice);
+  background: rgba(var(--good-rgb), 0.18);
+  border: 1px solid rgba(var(--good-rgb), 0.35);
   border-radius: 6px;
   padding: 2px 7px;
   line-height: 1.2;
@@ -536,10 +554,9 @@ body {
   font-size: 0.88rem;
   font-weight: 500;
   line-height: 1.35;
-  color: #f4f0ff;
+  color: var(--text);
 }
 
-/* Compact ring loader (IDE-style), not a full-panel shimmer. */
 .agent-loader {
   flex-shrink: 0;
   width: 32px;
@@ -554,7 +571,7 @@ body {
   display: block;
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(148, 163, 184, 0.2);
+  border: 2px solid rgba(190, 190, 215, 0.35);
   border-top-color: var(--vijia-purple);
   border-radius: 50%;
   animation: agent-loader-spin 0.7s linear infinite;
