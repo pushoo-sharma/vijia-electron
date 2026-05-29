@@ -238,8 +238,14 @@ function isHandshakeRequest(value: unknown): value is BrowserBridgeHandshakeRequ
 const GUIDE_CLAUDE_MAX_TOKENS = 2048
 let hasLoggedScreenpipeStatus = false
 
+type ActiveWindowInfo = { app?: string; title?: string }
+
 type ActiveWindowModule = {
-  getActiveWindow: () => Promise<{ title?: string | null } | null>
+  getActiveWindow: (
+    callback: (err: string | null, window: ActiveWindowInfo | null) => void,
+    repeats?: number,
+    interval?: number
+  ) => void
 }
 
 let activeWindowModulePromise: Promise<ActiveWindowModule | null> | null = null
@@ -257,10 +263,35 @@ function getActiveWindowModule(): Promise<ActiveWindowModule | null> {
       const m = mod as unknown as {
         default?: ActiveWindowModule
       } & ActiveWindowModule
-      return (m.default ?? m) || null
+      const resolved = m.default ?? m
+      return typeof resolved?.getActiveWindow === 'function' ? resolved : null
     })
     .catch(() => null)
   return activeWindowModulePromise
+}
+
+function getActiveWindowTitle(): Promise<string | null> {
+  return getActiveWindowModule().then(
+    (mod) =>
+      new Promise((resolve) => {
+        if (!mod) {
+          resolve(null)
+          return
+        }
+        try {
+          mod.getActiveWindow((err, window) => {
+            if (err || !window || typeof window.title !== 'string') {
+              resolve(null)
+              return
+            }
+            const title = window.title.trim()
+            resolve(title || null)
+          })
+        } catch {
+          resolve(null)
+        }
+      })
+  )
 }
 
 function isGuidePlanRequest(
@@ -406,10 +437,7 @@ async function handleGuideSignal(
     return
   }
 
-  const activeWindow = await getActiveWindowModule()
-  const windowInfo = activeWindow ? await activeWindow.getActiveWindow() : null
-  const activeWindowTitle =
-    typeof windowInfo?.title === 'string' ? windowInfo.title : null
+  const activeWindowTitle = await getActiveWindowTitle()
 
   const available = await isScreenpipeAvailable()
   if (!hasLoggedScreenpipeStatus) {
