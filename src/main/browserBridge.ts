@@ -6,7 +6,11 @@ import path from 'node:path'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { appendSessionLogNote } from './session-log'
 import { getVijiaStorageRoot } from './vijiaStorage'
-import { getScreenpipeVisibleText, isScreenpipeAvailable } from './screenpipe'
+import {
+  getScreenpipeSetupHint,
+  getScreenpipeVisibleText,
+  isScreenpipeAvailable
+} from './screenpipe'
 import { IPC_CHANNELS } from '../shared/ipcChannels'
 import type {
   BrowserBridgeHandshakeRequest,
@@ -442,8 +446,10 @@ async function handleGuideSignal(
   const available = await isScreenpipeAvailable()
   if (!hasLoggedScreenpipeStatus) {
     hasLoggedScreenpipeStatus = true
+    const hint = getScreenpipeSetupHint()
     console.log(
-      `[Vijia] ScreenPipe ${available ? 'available' : 'not available'} at startup probe`
+      `[Vijia] ScreenPipe ${available ? 'available' : 'not available'} (guide-signal probe)`,
+      hint ?? ''
     )
   }
   const screenText = available ? await getScreenpipeVisibleText() : null
