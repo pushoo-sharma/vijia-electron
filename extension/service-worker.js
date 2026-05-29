@@ -30,6 +30,51 @@ const ICON_PATHS = {
 }
 
 let guidePollTimer = null
+let guideScreenpipeFailures = 0
+let guideStepEpoch = 0
+let guidePollInFlight = false
+const GUIDE_SCREENPIPE_FAILURE_THRESHOLD = 3
+
+function isPermanentScreenpipeError(reason) {
+  return /api key|unauthorized|authentication/i.test(String(reason || ''))
+}
+
+function guideStepKey(step) {
+  if (!step) {
+    return ''
+  }
+  return [
+    step.detection_type,
+    step.instruction,
+    step.match_value || '',
+    step.screen_text || '',
+    step.advance_when || ''
+  ].join('\0')
+}
+
+async function isStillOnGuideStep(stepIndex, stepKey) {
+  const fresh = await getGuideState()
+  if (!fresh.active || fresh.finished) {
+    return false
+  }
+  if (fresh.currentIndex !== stepIndex) {
+    return false
+  }
+  return guideStepKey(fresh.steps[fresh.currentIndex]) === stepKey
+}
+
+async function advanceGuideFromDetection(stepIndex, step, reason) {
+  const stepKey = guideStepKey(step)
+  if (!(await isStillOnGuideStep(stepIndex, stepKey))) {
+    console.log('[Vijia][guide] ignored stale auto-advance', {
+      reason,
+      stepIndex,
+      detection_type: step?.detection_type
+    })
+    return getGuideState()
+  }
+  return advanceGuideAfterStep()
+}
 
 function defaultGuideState() {
   return {
@@ -243,16 +288,19 @@ async function postJson(url, body, options = {}) {
 }
 
 async function getGuideSignal(bridgeUrl, sessionToken) {
+  const url = `${bridgeUrl.replace(/\/$/, '')}/extension/guide-signal`
   try {
-    const response = await fetch(
-      `${bridgeUrl.replace(/\/$/, '')}/extension/guide-signal`,
-      { headers: { 'x-vijia-token': sessionToken } }
-    )
+    const response = await fetch(url, { headers: { 'x-vijia-token': sessionToken } })
     if (!response.ok) {
+      console.warn('[Vijia][guide] guide-signal HTTP error', {
+        status: response.status,
+        url
+      })
       return null
     }
     return await response.json()
-  } catch {
+  } catch (error) {
+    console.warn('[Vijia][guide] guide-signal fetch failed', { url, error })
     return null
   }
 }
@@ -446,6 +494,7 @@ async function startGuideFromGoal(goal) {
 }
 
 async function advanceGuideAfterStep() {
+  guideStepEpoch++
   const s = await getGuideState()
   if (!s.active) {
     return s
@@ -482,6 +531,7 @@ async function advanceGuideAfterStep() {
 }
 
 async function stopGuide() {
+  guideStepEpoch++
   const st = await setGuideState(defaultGuideState())
   await updateActionIcon(st)
   return st
@@ -492,17 +542,19 @@ async function evaluateActiveTab() {
   if (!s.active || s.finished) {
     return
   }
-  const step = s.steps[s.currentIndex]
+  const stepIndex = s.currentIndex
+  const step = s.steps[stepIndex]
   if (!step || step.detection_type !== 'url_match' || !step.match_value) {
     return
   }
+  const stepKey = guideStepKey(step)
   const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   if (!activeTab || !activeTab.id) {
     return
   }
   const url = activeTab.url || ''
   if (urlMatchesPattern(url, step.match_value)) {
-    await advanceGuideAfterStep()
+    await advanceGuideFromDetection(stepIndex, step, 'url_match')
     await syncGuidePolling()
     return
   }
@@ -534,35 +586,73 @@ function stopGuidePolling() {
     clearInterval(guidePollTimer)
     guidePollTimer = null
   }
+  guideScreenpipeFailures = 0
 }
 
 async function evaluateNonUrlStep() {
-  const s = await getGuideState()
-  if (!s.active || s.finished) {
-    stopGuidePolling()
+  if (guidePollInFlight) {
     return
   }
-  const step = s.steps[s.currentIndex]
-  if (!step) {
-    return
-  }
-  if (step.detection_type === 'manual_advance' || step.detection_type === 'url_match') {
-    return
-  }
-  const settings = await getSettings()
-  if (!settings.sessionToken) {
-    return
-  }
-  const signal = await getGuideSignal(settings.bridgeUrl, settings.sessionToken)
+  guidePollInFlight = true
+  const epochAtStart = guideStepEpoch
+  try {
+    const s = await getGuideState()
+    if (!s.active || s.finished) {
+      stopGuidePolling()
+      return
+    }
+    const stepIndex = s.currentIndex
+    const step = s.steps[stepIndex]
+    if (!step) {
+      return
+    }
+    if (step.detection_type === 'manual_advance' || step.detection_type === 'url_match') {
+      return
+    }
+    const stepKey = guideStepKey(step)
+    const settings = await getSettings()
+    if (!settings.sessionToken) {
+      return
+    }
+    const signal = await getGuideSignal(settings.bridgeUrl, settings.sessionToken)
+    if (epochAtStart !== guideStepEpoch) {
+      return
+    }
+    if (!(await isStillOnGuideStep(stepIndex, stepKey))) {
+      return
+    }
+    const fresh = await getGuideState()
   if (!signal || signal.ok !== true) {
-    if (!s.detectionUnavailable) {
+    guideScreenpipeFailures++
+    if (
+      !fresh.detectionUnavailable &&
+      guideScreenpipeFailures >= GUIDE_SCREENPIPE_FAILURE_THRESHOLD
+    ) {
+      console.warn('[Vijia][guide] signal detection unavailable', {
+        step: step.step,
+        detection_type: step.detection_type,
+        signalOk: signal?.ok,
+        bridgeUrl: settings.bridgeUrl,
+        consecutiveFailures: guideScreenpipeFailures
+      })
       await setGuideState({
-        ...s,
+        ...fresh,
         detectionUnavailable: true,
         detectionReason: 'Signal detection unavailable. Use Done to continue.'
       })
     }
     return
+  }
+  if (fresh.detectionUnavailable && signal.screenpipe?.available) {
+    guideScreenpipeFailures = 0
+    console.log('[Vijia][guide] ScreenPipe recovered, resuming auto-detection', {
+      step: step.step
+    })
+    await setGuideState({
+      ...fresh,
+      detectionUnavailable: false,
+      detectionReason: null
+    })
   }
   if (step.detection_type === 'title_match') {
     const title = String(signal.activeWindowTitle || '').toLowerCase()
@@ -571,7 +661,8 @@ async function evaluateNonUrlStep() {
       return
     }
     if (title.includes(expected)) {
-      await advanceGuideAfterStep()
+      await advanceGuideFromDetection(stepIndex, step, 'title_match')
+      await syncGuidePolling()
       return
     }
   }
@@ -580,24 +671,43 @@ async function evaluateNonUrlStep() {
     const text = String(signal.screenpipe?.text || '').toLowerCase()
     const target = String(step.screen_text || '').toLowerCase()
     if (!available) {
-      if (!s.detectionUnavailable) {
+      const reason =
+        typeof signal.screenpipe?.reason === 'string' && signal.screenpipe.reason
+          ? signal.screenpipe.reason
+          : 'ScreenPipe is unavailable. Use Done to continue.'
+      guideScreenpipeFailures++
+      const shouldLatch =
+        !fresh.detectionUnavailable &&
+        (isPermanentScreenpipeError(reason) ||
+          guideScreenpipeFailures >= GUIDE_SCREENPIPE_FAILURE_THRESHOLD)
+      if (shouldLatch) {
+        console.warn('[Vijia][guide] ScreenPipe unavailable for screen_text_match', {
+          step: step.step,
+          screen_text: step.screen_text,
+          reason,
+          consecutiveFailures: guideScreenpipeFailures
+        })
         await setGuideState({
-          ...s,
+          ...fresh,
           detectionUnavailable: true,
-          detectionReason: 'ScreenPipe is unavailable. Use Done to continue.'
+          detectionReason: reason
         })
       }
       return
     }
+    guideScreenpipeFailures = 0
     if (!target) {
       return
     }
     const found = text.includes(target)
     const advanceWhen = step.advance_when === 'disappears' ? 'disappears' : 'appears'
     if ((advanceWhen === 'appears' && found) || (advanceWhen === 'disappears' && !found)) {
-      await advanceGuideAfterStep()
-      return
+      await advanceGuideFromDetection(stepIndex, step, 'screen_text_match')
+      await syncGuidePolling()
     }
+  }
+  } finally {
+    guidePollInFlight = false
   }
 }
 

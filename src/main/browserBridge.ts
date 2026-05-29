@@ -6,11 +6,7 @@ import path from 'node:path'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { appendSessionLogNote } from './session-log'
 import { getVijiaStorageRoot } from './vijiaStorage'
-import {
-  getScreenpipeSetupHint,
-  getScreenpipeVisibleText,
-  isScreenpipeAvailable
-} from './screenpipe'
+import { getScreenpipeGuideSnapshot, logScreenpipeGuideSnapshot, logScreenpipeProbe } from './screenpipe'
 import { IPC_CHANNELS } from '../shared/ipcChannels'
 import type {
   BrowserBridgeHandshakeRequest,
@@ -242,6 +238,7 @@ function isHandshakeRequest(value: unknown): value is BrowserBridgeHandshakeRequ
 
 const GUIDE_CLAUDE_MAX_TOKENS = 2048
 let hasLoggedScreenpipeStatus = false
+let hasLoggedActiveWindowUnavailable = false
 
 type ActiveWindowInfo = { app?: string; title?: string }
 
@@ -447,23 +444,28 @@ async function handleGuideSignal(
   }
 
   const activeWindowTitle = await getActiveWindowTitle()
+  if (!activeWindowTitle && !hasLoggedActiveWindowUnavailable) {
+    hasLoggedActiveWindowUnavailable = true
+    if (isMainProcessDebugMode()) {
+      console.warn(
+        '[Vijia][debug] active window title unavailable (node-active-window returned null; grant Accessibility permission on macOS)'
+      )
+    }
+  }
 
-  const available = await isScreenpipeAvailable()
+  const snapshot = await getScreenpipeGuideSnapshot()
   if (!hasLoggedScreenpipeStatus) {
     hasLoggedScreenpipeStatus = true
-    const hint = getScreenpipeSetupHint()
-    console.log(
-      `[Vijia] ScreenPipe ${available ? 'available' : 'not available'} (guide-signal probe)`,
-      hint ?? ''
-    )
+    logScreenpipeProbe('guide-signal probe', snapshot)
   }
-  const screenText = available ? await getScreenpipeVisibleText() : null
+  logScreenpipeGuideSnapshot('guide-signal', snapshot, { activeWindowTitle })
   writeJson(res, 200, {
     ok: true,
     activeWindowTitle,
     screenpipe: {
-      available,
-      text: screenText
+      available: snapshot.available,
+      reason: snapshot.available ? null : snapshot.reason,
+      text: snapshot.text
     }
   })
 }
