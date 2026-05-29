@@ -6,6 +6,7 @@ import path from 'node:path'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { appendSessionLogNote } from './session-log'
 import { getVijiaStorageRoot } from './vijiaStorage'
+import { getScreenpipeGuideSnapshot, logScreenpipeGuideSnapshot, logScreenpipeProbe } from './screenpipe'
 import { IPC_CHANNELS } from '../shared/ipcChannels'
 import type {
   BrowserBridgeHandshakeRequest,
@@ -24,6 +25,7 @@ import {
 import { getSupabaseClientEnv } from './supabaseEnv'
 import { isMainProcessDebugMode } from './debugMode'
 import api, { type ClaudeProxyRequest } from '../shared/Api'
+import { buildGuidePlanMessages } from '../shared/guidePlanPrompt'
 
 const DEFAULT_BRIDGE_PORT = 45731
 const MAX_REQUEST_BYTES = 256 * 1024
@@ -235,6 +237,64 @@ function isHandshakeRequest(value: unknown): value is BrowserBridgeHandshakeRequ
 }
 
 const GUIDE_CLAUDE_MAX_TOKENS = 2048
+let hasLoggedScreenpipeStatus = false
+let hasLoggedActiveWindowUnavailable = false
+
+type ActiveWindowInfo = { app?: string; title?: string }
+
+type ActiveWindowModule = {
+  getActiveWindow: (
+    callback: (err: string | null, window: ActiveWindowInfo | null) => void,
+    repeats?: number,
+    interval?: number
+  ) => void
+}
+
+let activeWindowModulePromise: Promise<ActiveWindowModule | null> | null = null
+
+function getActiveWindowModule(): Promise<ActiveWindowModule | null> {
+  if (activeWindowModulePromise) {
+    return activeWindowModulePromise
+  }
+  const dynamicImport = new Function(
+    'm',
+    'return import(m)'
+  ) as (moduleName: string) => Promise<unknown>
+  activeWindowModulePromise = dynamicImport('node-active-window')
+    .then((mod) => {
+      const m = mod as unknown as {
+        default?: ActiveWindowModule
+      } & ActiveWindowModule
+      const resolved = m.default ?? m
+      return typeof resolved?.getActiveWindow === 'function' ? resolved : null
+    })
+    .catch(() => null)
+  return activeWindowModulePromise
+}
+
+function getActiveWindowTitle(): Promise<string | null> {
+  return getActiveWindowModule().then(
+    (mod) =>
+      new Promise((resolve) => {
+        if (!mod) {
+          resolve(null)
+          return
+        }
+        try {
+          mod.getActiveWindow((err, window) => {
+            if (err || !window || typeof window.title !== 'string') {
+              resolve(null)
+              return
+            }
+            const title = window.title.trim()
+            resolve(title || null)
+          })
+        } catch {
+          resolve(null)
+        }
+      })
+  )
+}
 
 function isGuidePlanRequest(
   value: unknown
@@ -259,10 +319,29 @@ function isGuideStep(value: unknown): value is GuideStep {
   if (typeof o.instruction !== 'string' || o.instruction.trim() === '') {
     return false
   }
-  if (o.detection_type !== 'url_match' && o.detection_type !== 'manual_advance') {
+  if (
+    o.detection_type !== 'url_match' &&
+    o.detection_type !== 'title_match' &&
+    o.detection_type !== 'screen_text_match' &&
+    o.detection_type !== 'manual_advance'
+  ) {
     return false
   }
   if (o.match_value !== null && typeof o.match_value !== 'string') {
+    return false
+  }
+  if (
+    o.screen_text !== undefined &&
+    o.screen_text !== null &&
+    typeof o.screen_text !== 'string'
+  ) {
+    return false
+  }
+  if (
+    o.advance_when != null &&
+    o.advance_when !== 'appears' &&
+    o.advance_when !== 'disappears'
+  ) {
     return false
   }
   return true
@@ -319,18 +398,76 @@ function parseGuideStepsFromProxyBody(data: unknown): GuideStep[] | null {
     if (!isGuideStep(item)) {
       return null
     }
-    if (item.detection_type === 'url_match') {
+    if (item.detection_type === 'url_match' || item.detection_type === 'title_match') {
       if (typeof item.match_value !== 'string' || !item.match_value.trim()) {
+        return null
+      }
+    }
+    if (item.detection_type === 'screen_text_match') {
+      if (typeof item.screen_text !== 'string' || !item.screen_text.trim()) {
+        return null
+      }
+      if (item.advance_when !== 'appears' && item.advance_when !== 'disappears') {
         return null
       }
     }
     out.push({
       instruction: item.instruction.trim(),
       detection_type: item.detection_type,
-      match_value: item.match_value
+      match_value: item.match_value,
+      screen_text:
+        typeof item.screen_text === 'string' ? item.screen_text.trim() : null,
+      advance_when:
+        item.detection_type === 'screen_text_match' &&
+        (item.advance_when === 'appears' || item.advance_when === 'disappears')
+          ? item.advance_when
+          : undefined
     })
   }
   return out
+}
+
+async function handleGuideSignal(
+  req: IncomingMessage,
+  res: ServerResponse
+): Promise<void> {
+  const token = req.headers['x-vijia-token']
+  const payloadToken =
+    typeof token === 'string'
+      ? token
+      : Array.isArray(token)
+        ? token[0]
+        : undefined
+  if (!hasValidToken(payloadToken)) {
+    writeJson(res, 401, { ok: false, error: 'invalid-token' })
+    return
+  }
+
+  const activeWindowTitle = await getActiveWindowTitle()
+  if (!activeWindowTitle && !hasLoggedActiveWindowUnavailable) {
+    hasLoggedActiveWindowUnavailable = true
+    if (isMainProcessDebugMode()) {
+      console.warn(
+        '[Vijia][debug] active window title unavailable (node-active-window returned null; grant Accessibility permission on macOS)'
+      )
+    }
+  }
+
+  const snapshot = await getScreenpipeGuideSnapshot()
+  if (!hasLoggedScreenpipeStatus) {
+    hasLoggedScreenpipeStatus = true
+    logScreenpipeProbe('guide-signal probe', snapshot)
+  }
+  logScreenpipeGuideSnapshot('guide-signal', snapshot, { activeWindowTitle })
+  writeJson(res, 200, {
+    ok: true,
+    activeWindowTitle,
+    screenpipe: {
+      available: snapshot.available,
+      reason: snapshot.available ? null : snapshot.reason,
+      text: snapshot.text
+    }
+  })
 }
 
 async function handleGuidePlan(
@@ -371,7 +508,7 @@ async function handleGuidePlan(
     proactive: false,
     guide: true,
     max_tokens: GUIDE_CLAUDE_MAX_TOKENS,
-    messages: [{ role: 'user', content: goal }]
+    messages: buildGuidePlanMessages(goal)
   }
 
   try {
@@ -380,6 +517,9 @@ async function handleGuidePlan(
     }
     const resProxy = await api.claudeProxy(requestBody)
     if (resProxy.status < 200 || resProxy.status >= 300) {
+      if (isMainProcessDebugMode()) {
+        console.warn('[Vijia] guide-plan claude-proxy error body:', resProxy.data)
+      }
       writeJson(res, 502, {
         ok: false,
         error: 'claude-proxy-error',
@@ -404,7 +544,16 @@ async function handleGuidePlan(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     if (isMainProcessDebugMode()) {
-      console.warn('[Vijia] guide-plan:', msg)
+      const axiosBody =
+        error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        error.response &&
+        typeof error.response === 'object' &&
+        'data' in error.response
+          ? (error.response as { data?: unknown }).data
+          : undefined
+      console.warn('[Vijia] guide-plan:', msg, axiosBody ?? '')
     }
     writeJson(res, 500, { ok: false, error: 'internal-error', detail: msg })
   }
@@ -589,6 +738,11 @@ async function handleBridgeRequest(
 
   if (method === 'POST' && url.pathname === '/extension/guide-plan') {
     await handleGuidePlan(req, res)
+    return
+  }
+
+  if (method === 'GET' && url.pathname === '/extension/guide-signal') {
+    await handleGuideSignal(req, res)
     return
   }
 

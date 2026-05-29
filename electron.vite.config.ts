@@ -25,6 +25,8 @@ export default defineConfig(({ mode }) => {
   const vijiaDebug = env['VIJIA_DEBUG'] ?? ''
   const vijiaDisableCooldowns = env['VIJIA_DISABLE_COOLDOWNS'] ?? ''
   const vijiaProactiveForceSpeak = env['VIJIA_PROACTIVE_FORCE_SPEAK'] ?? ''
+  const vijiaScreenpipeUrl = env['VIJIA_SCREENPIPE_URL'] ?? ''
+  const vijiaScreenpipeApiKey = env['VIJIA_SCREENPIPE_API_KEY'] ?? ''
 
   return {
   main: {
@@ -37,6 +39,13 @@ export default defineConfig(({ mode }) => {
       ),
       'process.env.VIJIA_PROACTIVE_FORCE_SPEAK': JSON.stringify(
         vijiaProactiveForceSpeak
+      ),
+      'process.env.VIJIA_SCREENPIPE_URL': JSON.stringify(vijiaScreenpipeUrl),
+      'process.env.VIJIA_SCREENPIPE_API_KEY': JSON.stringify(
+        vijiaScreenpipeApiKey
+      ),
+      'process.env.SCREENPIPE_API_KEY': JSON.stringify(
+        env['SCREENPIPE_API_KEY'] ?? ''
       )
     },
     build: {
@@ -60,6 +69,7 @@ export default defineConfig(({ mode }) => {
     }
   },
   renderer: {
+    publicDir: resolve('public'),
     plugins: [react(), electronRendererStripCrossorigin()],
     build: {
       rollupOptions: {

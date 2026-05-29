@@ -41,6 +41,7 @@ export function getOrCreateMainWindow(initialTab?: TabKey): BrowserWindow {
     show: false,
     center: true,
     resizable: true,
+    backgroundColor: '#f0f0f5',
     webPreferences: {
       preload: getPreloadPath(),
       contextIsolation: true,

@@ -4,12 +4,22 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Vijia Guide</title>
+    <link
+      rel="preload"
+      href="fonts/PlusJakartaSans-VariableFont_wght.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link rel="stylesheet" href="brand.css" />
     <link rel="stylesheet" href="sidebar.css" />
   </head>
   <body>
     <div class="vijia-root" id="root">
       <header class="vijia-header">
-        <span class="vijia-logo" aria-hidden="true">V</span>
+        <span class="vijia-logo" id="vijia-logo" aria-hidden="true">
+          <img src="brand/iji-face.png" alt="" class="vijia-logo-img" />
+        </span>
         <h1 class="vijia-title">Guide</h1>
       </header>
 
@@ -46,6 +56,8 @@
           </p>
         </div>
 
+        <p id="step-status" class="step-status" hidden aria-live="polite"></p>
+
         <p id="correction" class="correction" hidden></p>
         <p id="trouble" class="trouble" hidden></p>
 
@@ -77,18 +89,7 @@
         <div class="agent-card">
           <div class="agent-card-top">
             <div class="agent-avatar" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="agent-avatar-icon">
-                <path
-                  d="M12 2.5L13.6 8.1L19.2 6.4L16.4 11.3L22 12L16.4 12.7L19.2 17.6L13.6 15.9L12 21.5L10.4 15.9L4.8 17.6L7.6 12.7L2 12L7.6 11.3L4.8 6.4L10.4 8.1L12 2.5Z"
-                  fill="url(#ag)"
-                />
-                <defs>
-                  <linearGradient id="ag" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                    <stop stop-color="#a78bfa" />
-                    <stop offset="1" stop-color="#22d3ee" />
-                  </linearGradient>
-                </defs>
-              </svg>
+              <img src="brand/iji-face.png" alt="" class="agent-avatar-img" />
             </div>
             <div class="agent-card-titles">
               <div class="agent-title-row">

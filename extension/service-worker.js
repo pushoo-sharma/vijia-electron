@@ -11,6 +11,70 @@ const GUIDE_STATE_KEY = 'vijiaGuideState'
 const GUIDE_PLAN_TIMEOUT_MS = 120_000
 const GUIDE_PLAN_RETRIES = 0
 const GUIDE_LOADING_STALE_MS = GUIDE_PLAN_TIMEOUT_MS + 5_000
+const GUIDE_TITLE_POLL_MS = 200
+const GUIDE_SCREEN_TEXT_POLL_MS = 400
+
+const ICON_PATHS = {
+  sleeping: {
+    16: 'icons/iji-sleeping-16.png',
+    32: 'icons/iji-sleeping-32.png'
+  },
+  awake: {
+    16: 'icons/iji-awake-16.png',
+    32: 'icons/iji-awake-32.png'
+  },
+  glowing: {
+    16: 'icons/iji-glowing-16.png',
+    32: 'icons/iji-glowing-32.png'
+  }
+}
+
+let guidePollTimer = null
+let guideScreenpipeFailures = 0
+let guideStepEpoch = 0
+let guidePollInFlight = false
+const GUIDE_SCREENPIPE_FAILURE_THRESHOLD = 3
+
+function isPermanentScreenpipeError(reason) {
+  return /api key|unauthorized|authentication/i.test(String(reason || ''))
+}
+
+function guideStepKey(step) {
+  if (!step) {
+    return ''
+  }
+  return [
+    step.detection_type,
+    step.instruction,
+    step.match_value || '',
+    step.screen_text || '',
+    step.advance_when || ''
+  ].join('\0')
+}
+
+async function isStillOnGuideStep(stepIndex, stepKey) {
+  const fresh = await getGuideState()
+  if (!fresh.active || fresh.finished) {
+    return false
+  }
+  if (fresh.currentIndex !== stepIndex) {
+    return false
+  }
+  return guideStepKey(fresh.steps[fresh.currentIndex]) === stepKey
+}
+
+async function advanceGuideFromDetection(stepIndex, step, reason) {
+  const stepKey = guideStepKey(step)
+  if (!(await isStillOnGuideStep(stepIndex, stepKey))) {
+    console.log('[Vijia][guide] ignored stale auto-advance', {
+      reason,
+      stepIndex,
+      detection_type: step?.detection_type
+    })
+    return getGuideState()
+  }
+  return advanceGuideAfterStep()
+}
 
 function defaultGuideState() {
   return {
@@ -27,7 +91,9 @@ function defaultGuideState() {
     error: null,
     isLoading: false,
     loadingStartedAt: null,
-    loadingRequestId: null
+    loadingRequestId: null,
+    detectionUnavailable: false,
+    detectionReason: null
   }
 }
 
@@ -88,6 +154,15 @@ async function setGuideState(partial) {
   const next = { ...current, ...partial }
   await chrome.storage.local.set({ [GUIDE_STATE_KEY]: next })
   return next
+}
+
+async function updateActionIcon(state) {
+  const iconState = state.active ? 'glowing' : state.finished ? 'awake' : 'sleeping'
+  try {
+    await chrome.action.setIcon({ path: ICON_PATHS[iconState] })
+  } catch {
+    // If assets are missing, do not break guide flow.
+  }
 }
 
 function isHttpUrl(value) {
@@ -210,6 +285,24 @@ async function postJson(url, body, options = {}) {
   }
 
   return { ok: false, status: 0, data: {} }
+}
+
+async function getGuideSignal(bridgeUrl, sessionToken) {
+  const url = `${bridgeUrl.replace(/\/$/, '')}/extension/guide-signal`
+  try {
+    const response = await fetch(url, { headers: { 'x-vijia-token': sessionToken } })
+    if (!response.ok) {
+      console.warn('[Vijia][guide] guide-signal HTTP error', {
+        status: response.status,
+        url
+      })
+      return null
+    }
+    return await response.json()
+  } catch (error) {
+    console.warn('[Vijia][guide] guide-signal fetch failed', { url, error })
+    return null
+  }
 }
 
 function registerReloadContextMenu() {
@@ -366,7 +459,7 @@ async function startGuideFromGoal(goal) {
         )
       )
     }
-    return setGuideState({
+    const st = await setGuideState({
       isLoading: false,
       loadingStartedAt: null,
       loadingRequestId: null,
@@ -380,8 +473,12 @@ async function startGuideFromGoal(goal) {
       lastWrongUrl: null,
       showSkipHelper: false,
       correction: null,
-      trouble: null
+      trouble: null,
+      detectionUnavailable: false,
+      detectionReason: null
     })
+    await updateActionIcon(st)
+    return st
   } catch (e) {
     if (!(await getActiveLoadingRequest(requestId))) {
       return getGuideState()
@@ -397,13 +494,14 @@ async function startGuideFromGoal(goal) {
 }
 
 async function advanceGuideAfterStep() {
+  guideStepEpoch++
   const s = await getGuideState()
   if (!s.active) {
     return s
   }
   const next = s.currentIndex + 1
   if (next >= s.steps.length) {
-    return setGuideState({
+    const st = await setGuideState({
       ...s,
       active: false,
       finished: true,
@@ -414,21 +512,29 @@ async function advanceGuideAfterStep() {
       correction: null,
       trouble: null
     })
+    await updateActionIcon(st)
+    return st
   }
-  return setGuideState({
+  const st = await setGuideState({
     ...s,
     currentIndex: next,
     wrongNavCount: 0,
     lastWrongUrl: null,
     showSkipHelper: false,
     correction: null,
-    trouble: null
+    trouble: null,
+    detectionUnavailable: false,
+    detectionReason: null
   })
+  await updateActionIcon(st)
+  return st
 }
 
 async function stopGuide() {
-  await setGuideState(defaultGuideState())
-  return getGuideState()
+  guideStepEpoch++
+  const st = await setGuideState(defaultGuideState())
+  await updateActionIcon(st)
+  return st
 }
 
 async function evaluateActiveTab() {
@@ -436,17 +542,20 @@ async function evaluateActiveTab() {
   if (!s.active || s.finished) {
     return
   }
-  const step = s.steps[s.currentIndex]
+  const stepIndex = s.currentIndex
+  const step = s.steps[stepIndex]
   if (!step || step.detection_type !== 'url_match' || !step.match_value) {
     return
   }
+  const stepKey = guideStepKey(step)
   const [activeTab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   if (!activeTab || !activeTab.id) {
     return
   }
   const url = activeTab.url || ''
   if (urlMatchesPattern(url, step.match_value)) {
-    await advanceGuideAfterStep()
+    await advanceGuideFromDetection(stepIndex, step, 'url_match')
+    await syncGuidePolling()
     return
   }
   if (!isHttpUrl(url)) {
@@ -470,6 +579,160 @@ async function evaluateActiveTab() {
     correction,
     trouble
   })
+}
+
+function stopGuidePolling() {
+  if (guidePollTimer) {
+    clearInterval(guidePollTimer)
+    guidePollTimer = null
+  }
+  guideScreenpipeFailures = 0
+}
+
+async function evaluateNonUrlStep() {
+  if (guidePollInFlight) {
+    return
+  }
+  guidePollInFlight = true
+  const epochAtStart = guideStepEpoch
+  try {
+    const s = await getGuideState()
+    if (!s.active || s.finished) {
+      stopGuidePolling()
+      return
+    }
+    const stepIndex = s.currentIndex
+    const step = s.steps[stepIndex]
+    if (!step) {
+      return
+    }
+    if (step.detection_type === 'manual_advance' || step.detection_type === 'url_match') {
+      return
+    }
+    const stepKey = guideStepKey(step)
+    const settings = await getSettings()
+    if (!settings.sessionToken) {
+      return
+    }
+    const signal = await getGuideSignal(settings.bridgeUrl, settings.sessionToken)
+    if (epochAtStart !== guideStepEpoch) {
+      return
+    }
+    if (!(await isStillOnGuideStep(stepIndex, stepKey))) {
+      return
+    }
+    const fresh = await getGuideState()
+  if (!signal || signal.ok !== true) {
+    guideScreenpipeFailures++
+    if (
+      !fresh.detectionUnavailable &&
+      guideScreenpipeFailures >= GUIDE_SCREENPIPE_FAILURE_THRESHOLD
+    ) {
+      console.warn('[Vijia][guide] signal detection unavailable', {
+        step: step.step,
+        detection_type: step.detection_type,
+        signalOk: signal?.ok,
+        bridgeUrl: settings.bridgeUrl,
+        consecutiveFailures: guideScreenpipeFailures
+      })
+      await setGuideState({
+        ...fresh,
+        detectionUnavailable: true,
+        detectionReason: 'Signal detection unavailable. Use Done to continue.'
+      })
+    }
+    return
+  }
+  if (fresh.detectionUnavailable && signal.screenpipe?.available) {
+    guideScreenpipeFailures = 0
+    console.log('[Vijia][guide] ScreenPipe recovered, resuming auto-detection', {
+      step: step.step
+    })
+    await setGuideState({
+      ...fresh,
+      detectionUnavailable: false,
+      detectionReason: null
+    })
+  }
+  if (step.detection_type === 'title_match') {
+    const title = String(signal.activeWindowTitle || '').toLowerCase()
+    const expected = String(step.match_value || '').toLowerCase()
+    if (!title || !expected) {
+      return
+    }
+    if (title.includes(expected)) {
+      await advanceGuideFromDetection(stepIndex, step, 'title_match')
+      await syncGuidePolling()
+      return
+    }
+  }
+  if (step.detection_type === 'screen_text_match') {
+    const available = !!signal.screenpipe?.available
+    const text = String(signal.screenpipe?.text || '').toLowerCase()
+    const target = String(step.screen_text || '').toLowerCase()
+    if (!available) {
+      const reason =
+        typeof signal.screenpipe?.reason === 'string' && signal.screenpipe.reason
+          ? signal.screenpipe.reason
+          : 'ScreenPipe is unavailable. Use Done to continue.'
+      guideScreenpipeFailures++
+      const shouldLatch =
+        !fresh.detectionUnavailable &&
+        (isPermanentScreenpipeError(reason) ||
+          guideScreenpipeFailures >= GUIDE_SCREENPIPE_FAILURE_THRESHOLD)
+      if (shouldLatch) {
+        console.warn('[Vijia][guide] ScreenPipe unavailable for screen_text_match', {
+          step: step.step,
+          screen_text: step.screen_text,
+          reason,
+          consecutiveFailures: guideScreenpipeFailures
+        })
+        await setGuideState({
+          ...fresh,
+          detectionUnavailable: true,
+          detectionReason: reason
+        })
+      }
+      return
+    }
+    guideScreenpipeFailures = 0
+    if (!target) {
+      return
+    }
+    const found = text.includes(target)
+    const advanceWhen = step.advance_when === 'disappears' ? 'disappears' : 'appears'
+    if ((advanceWhen === 'appears' && found) || (advanceWhen === 'disappears' && !found)) {
+      await advanceGuideFromDetection(stepIndex, step, 'screen_text_match')
+      await syncGuidePolling()
+    }
+  }
+  } finally {
+    guidePollInFlight = false
+  }
+}
+
+async function syncGuidePolling() {
+  const s = await getGuideState()
+  if (!s.active || s.finished) {
+    stopGuidePolling()
+    return
+  }
+  const step = s.steps[s.currentIndex]
+  if (!step) {
+    stopGuidePolling()
+    return
+  }
+  if (step.detection_type === 'url_match' || step.detection_type === 'manual_advance') {
+    stopGuidePolling()
+    return
+  }
+  const intervalMs =
+    step.detection_type === 'title_match' ? GUIDE_TITLE_POLL_MS : GUIDE_SCREEN_TEXT_POLL_MS
+  stopGuidePolling()
+  guidePollTimer = setInterval(() => {
+    void evaluateNonUrlStep()
+  }, intervalMs)
+  void evaluateNonUrlStep()
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
@@ -524,6 +787,7 @@ if (typeof chrome !== 'undefined' && chrome.sidePanel && chrome.sidePanel.setPan
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
 }
 void runHandshake()
+void updateActionIcon(defaultGuideState())
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'VIJIA_GUIDE_GET_STATE') {
@@ -561,6 +825,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const st = await startGuideFromGoal(goal)
       await runHandshake()
       await evaluateActiveTab()
+      await syncGuidePolling()
       sendResponse({ ok: !st.error, state: st })
     })()
     return true
@@ -573,11 +838,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return
       }
       const step = s.steps[s.currentIndex]
-      if (!step || step.detection_type !== 'manual_advance') {
+      const allowManual =
+        step &&
+        (step.detection_type === 'manual_advance' ||
+          s.detectionUnavailable === true ||
+          step.detection_type === 'screen_text_match')
+      if (!allowManual) {
         sendResponse({ ok: false, state: s })
         return
       }
       const st = await advanceGuideAfterStep()
+      await syncGuidePolling()
       sendResponse({ ok: true, state: st })
     })()
     return true
@@ -595,6 +866,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       const st = await advanceGuideAfterStep()
       void evaluateActiveTab()
+      await syncGuidePolling()
       sendResponse({ ok: true, state: st })
     })()
     return true
@@ -602,6 +874,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'VIJIA_GUIDE_STOP') {
     void (async () => {
       const st = await stopGuide()
+      stopGuidePolling()
       sendResponse({ ok: true, state: st })
     })()
     return true
@@ -609,6 +882,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'VIJIA_GUIDE_RESET') {
     void (async () => {
       const st = await stopGuide()
+      stopGuidePolling()
       sendResponse({ ok: true, state: st })
     })()
     return true

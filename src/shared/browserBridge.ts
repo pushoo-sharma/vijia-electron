@@ -58,12 +58,20 @@ export type BrowserCaptureEnvelope = {
   payload: BrowserExtensionCaptureRequest
 }
 
-export type GuideDetectionType = 'url_match' | 'manual_advance'
+export type GuideDetectionType =
+  | 'url_match'
+  | 'title_match'
+  | 'screen_text_match'
+  | 'manual_advance'
+
+export type GuideAdvanceWhen = 'appears' | 'disappears'
 
 export type GuideStep = {
   instruction: string
   detection_type: GuideDetectionType
   match_value: string | null
+  screen_text?: string | null
+  advance_when?: GuideAdvanceWhen
 }
 
 export type ExtensionGuidePlanRequest = {

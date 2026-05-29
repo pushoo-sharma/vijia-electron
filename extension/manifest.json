@@ -23,7 +23,11 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Vijia Browser Bridge"
+    "default_title": "Vijia Browser Bridge",
+    "default_icon": {
+      "16": "icons/iji-sleeping-16.png",
+      "32": "icons/iji-sleeping-32.png"
+    }
   },
   "options_page": "options.html",
   "content_scripts": [

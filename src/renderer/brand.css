@@ -1,0 +1,75 @@
+/* Vijia brand tokens — brandbook p.11–12 palette and gradients */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("../../assets/fonts/PlusJakartaSans-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("../../assets/fonts/PlusJakartaSans-Italic-VariableFont_wght.ttf") format("truetype");
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  --vijia-font: "Plus Jakarta Sans", Arial, system-ui, sans-serif;
+
+  /* Primary palette (brandbook p.11) */
+  --vijia-charcoal: #22222d;
+  --vijia-purple: #afafe6;
+  --vijia-white: #ffffff;
+
+  /* Secondary palette */
+  --vijia-ice: #f0f0f5;
+  --vijia-ice-02: #e1e1eb;
+  --vijia-lilac: #bebed7;
+  --vijia-purple-mid: #46465a;
+  --vijia-green: #78d2a5;
+  --vijia-green-light: #befac8;
+
+  /* Gradients (brandbook p.12) */
+  --vijia-gradient-roxo: linear-gradient(135deg, #afafe6 0%, #ffffff 100%);
+  --vijia-gradient-gelo: linear-gradient(180deg, #f0f0f5 0%, #e1e1eb 100%);
+  --vijia-gradient-escuro: linear-gradient(135deg, #46465a 0%, #22222d 100%);
+  --vijia-gradient-verde: linear-gradient(135deg, #78d2a5 0%, #befac8 100%);
+
+  /* Semantic — light mode */
+  --vijia-bg: var(--vijia-ice);
+  --vijia-text: var(--vijia-charcoal);
+  --vijia-muted: #5f5873;
+  --vijia-card: rgba(255, 255, 255, 0.92);
+  --vijia-card-strong: var(--vijia-white);
+  --vijia-bubble: var(--vijia-white);
+  --vijia-bubble-border: rgba(175, 175, 230, 0.35);
+  --vijia-line: rgba(190, 190, 215, 0.55);
+  --vijia-shadow: 0 20px 44px rgba(34, 34, 45, 0.1);
+  --vijia-radius: 18px;
+
+  /* Legacy aliases */
+  --vijia-lavender: var(--vijia-ice);
+  --vijia-lavender-deep: var(--vijia-ice-02);
+  --vijia-purple-deep: var(--vijia-charcoal);
+  --vijia-green-deep: var(--vijia-green);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --vijia-bg: #1a1a24;
+    --vijia-text: var(--vijia-white);
+    --vijia-muted: var(--vijia-lilac);
+    --vijia-card: rgba(45, 45, 58, 0.92);
+    --vijia-card-strong: #2d2d3a;
+    --vijia-bubble: #2d2d3a;
+    --vijia-bubble-border: rgba(175, 175, 230, 0.2);
+    --vijia-line: rgba(190, 190, 215, 0.22);
+    --vijia-shadow: 0 20px 44px rgba(0, 0, 0, 0.32);
+
+    --vijia-lavender: #1a1a24;
+    --vijia-lavender-deep: #2d2d3a;
+    --vijia-purple-deep: var(--vijia-purple-mid);
+  }
+}
