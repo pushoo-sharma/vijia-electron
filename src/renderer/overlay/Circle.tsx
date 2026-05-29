@@ -1,5 +1,5 @@
 import { forwardRef, type ReactElement } from 'react'
-import ijiFaceUrl from '../../../public/brand/iji-face.png'
+import ijiFaceUrl from '../../../assets/brand/iji-face.png'
 
 type Props = {
   guideMode?: boolean
