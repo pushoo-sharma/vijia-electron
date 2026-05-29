@@ -29,6 +29,7 @@ import {
 import { getSupabaseClientEnv } from './supabaseEnv'
 import { isMainProcessDebugMode } from './debugMode'
 import api, { type ClaudeProxyRequest } from '../shared/Api'
+import { buildGuidePlanMessages } from '../shared/guidePlanPrompt'
 
 const DEFAULT_BRIDGE_PORT = 45731
 const MAX_REQUEST_BYTES = 256 * 1024
@@ -340,7 +341,7 @@ function isGuideStep(value: unknown): value is GuideStep {
     return false
   }
   if (
-    o.advance_when !== undefined &&
+    o.advance_when != null &&
     o.advance_when !== 'appears' &&
     o.advance_when !== 'disappears'
   ) {
@@ -419,7 +420,11 @@ function parseGuideStepsFromProxyBody(data: unknown): GuideStep[] | null {
       match_value: item.match_value,
       screen_text:
         typeof item.screen_text === 'string' ? item.screen_text.trim() : null,
-      advance_when: item.advance_when
+      advance_when:
+        item.detection_type === 'screen_text_match' &&
+        (item.advance_when === 'appears' || item.advance_when === 'disappears')
+          ? item.advance_when
+          : undefined
     })
   }
   return out
@@ -501,7 +506,7 @@ async function handleGuidePlan(
     proactive: false,
     guide: true,
     max_tokens: GUIDE_CLAUDE_MAX_TOKENS,
-    messages: [{ role: 'user', content: goal }]
+    messages: buildGuidePlanMessages(goal)
   }
 
   try {
@@ -510,6 +515,9 @@ async function handleGuidePlan(
     }
     const resProxy = await api.claudeProxy(requestBody)
     if (resProxy.status < 200 || resProxy.status >= 300) {
+      if (isMainProcessDebugMode()) {
+        console.warn('[Vijia] guide-plan claude-proxy error body:', resProxy.data)
+      }
       writeJson(res, 502, {
         ok: false,
         error: 'claude-proxy-error',
@@ -534,7 +542,16 @@ async function handleGuidePlan(
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     if (isMainProcessDebugMode()) {
-      console.warn('[Vijia] guide-plan:', msg)
+      const axiosBody =
+        error &&
+        typeof error === 'object' &&
+        'response' in error &&
+        error.response &&
+        typeof error.response === 'object' &&
+        'data' in error.response
+          ? (error.response as { data?: unknown }).data
+          : undefined
+      console.warn('[Vijia] guide-plan:', msg, axiosBody ?? '')
     }
     writeJson(res, 500, { ok: false, error: 'internal-error', detail: msg })
   }
