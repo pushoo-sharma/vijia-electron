@@ -13,6 +13,7 @@ const el = {
   completedList: document.getElementById('completed-list'),
   currentWrap: document.getElementById('current-wrap'),
   currentInstruction: document.getElementById('current-instruction'),
+  stepStatus: document.getElementById('step-status'),
   correction: document.getElementById('correction'),
   trouble: document.getElementById('trouble'),
   btnDone: document.getElementById('btn-done'),
@@ -26,6 +27,64 @@ const el = {
 
 /** @type {null | { currentIndex: number; active: boolean; finished: boolean; isLoading: boolean } } */
 let lastSnapshot = null
+
+/**
+ * @param {string} text
+ */
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * @param {Record<string, unknown> | null | undefined} cur
+ * @param {Record<string, unknown>} s
+ */
+function applyStepStatus(cur, s) {
+  if (!el.stepStatus) {
+    return
+  }
+  el.stepStatus.classList.remove('step-status--watching', 'step-status--warn')
+
+  if (s.detectionUnavailable) {
+    el.stepStatus.textContent = s.detectionReason
+      ? String(s.detectionReason)
+      : 'Automatic detection unavailable. Press Done to continue.'
+    el.stepStatus.hidden = false
+    el.stepStatus.classList.add('step-status--warn')
+    return
+  }
+
+  if (cur && cur.detection_type === 'screen_text_match') {
+    const when = cur.advance_when === 'disappears' ? 'disappear' : 'appear'
+    const target = escapeHtml(cur.screen_text || '')
+    el.stepStatus.innerHTML = `<span class="step-status-dot" aria-hidden="true"></span><span class="step-status-ring" aria-hidden="true"></span>Watching screen for "<strong>${target}</strong>" to ${when}…`
+    el.stepStatus.hidden = false
+    el.stepStatus.classList.add('step-status--watching')
+    return
+  }
+
+  if (cur && cur.detection_type === 'manual_advance') {
+    el.stepStatus.textContent = 'Press Done when you\'ve finished this step.'
+    el.stepStatus.hidden = false
+    return
+  }
+
+  el.stepStatus.textContent = ''
+  el.stepStatus.hidden = true
+}
+
+function hideStepStatus() {
+  if (!el.stepStatus) {
+    return
+  }
+  el.stepStatus.textContent = ''
+  el.stepStatus.hidden = true
+  el.stepStatus.classList.remove('step-status--watching', 'step-status--warn')
+}
 
 /**
  * @param {Record<string, unknown>} s
@@ -57,6 +116,7 @@ function applyStateToUi(s) {
   }
 
   if (s.finished) {
+    hideStepStatus()
     el.panelGoal.hidden = true
     el.panelRun.hidden = true
     el.panelDone.hidden = false
@@ -117,6 +177,7 @@ function applyStateToUi(s) {
       (cur && cur.detection_type === 'screen_text_match')
     const showDone = isManual || fallbackManual
     el.btnDone.hidden = !showDone
+    applyStepStatus(cur, s)
     if (s.showSkipHelper) {
       el.btnSkip.hidden = false
       el.btnStopTrouble.hidden = false
@@ -134,6 +195,7 @@ function applyStateToUi(s) {
       el.currentWrap.classList.add('advance-flash')
     }
   } else {
+    hideStepStatus()
     el.panelGoal.hidden = false
     el.panelRun.hidden = true
     el.panelDone.hidden = true
