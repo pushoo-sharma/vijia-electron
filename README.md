@@ -12,13 +12,28 @@ System tray mini-app built with **Electron** (v30+), **React 18**, and **TypeScr
 npm install
 ```
 
+`npm install` adds the [ScreenPipe](https://github.com/mediar-ai/screenpipe) CLI as a dev dependency (used for Guide Mode `screen_text_match`).
+
 ## Development
 
 ```bash
 npm run dev
 ```
 
-This starts the Vite dev server and launches Electron. A tray icon appears; use **Open Vijia** from the context menu to show the window.
+This starts **ScreenPipe** (if it is not already running on `http://127.0.0.1:3030`), then the Vite dev server and Electron. A tray icon appears; use **Open Vijia** from the context menu to show the window.
+
+On first run, macOS may prompt for **Screen Recording** — allow it for Guide Mode screen detection. Dev auto-start uses fast screen capture intervals and `--disable-audio`.
+
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | ScreenPipe + Electron (default) |
+| `npm run dev:app` | Electron only (no ScreenPipe) |
+| `npm run screenpipe` | ScreenPipe recorder only |
+| `npm run screenpipe:token` | Print API token for `.env` (`VIJIA_SCREENPIPE_API_KEY`) |
+
+To skip auto-starting ScreenPipe: `VIJIA_SKIP_SCREENPIPE=1 npm run dev`
+
+Copy `.env.example` to `.env` and set Supabase keys; add `VIJIA_SCREENPIPE_API_KEY` if ScreenPipe API auth is enabled.
 
 ## Production build
 
@@ -26,6 +41,8 @@ This starts the Vite dev server and launches Electron. A tray icon appears; use 
 npm run build
 npm run preview
 ```
+
+**Client / QA local run (built app + ScreenPipe + extension):** see [docs/local-client-setup.md](docs/local-client-setup.md).
 
 ## Typecheck
 

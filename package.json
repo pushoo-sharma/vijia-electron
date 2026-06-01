@@ -5,7 +5,11 @@
   "main": "out/main/main.js",
   "type": "module",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:app": "electron-vite dev",
+    "screenpipe": "node scripts/screenpipe.mjs",
+    "screenpipe:token": "screenpipe auth token",
+    "postinstall": "node scripts/ensure-screenpipe.mjs",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit"
@@ -23,6 +27,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^35.0.0",
     "electron-vite": "^5.0.0",
+    "screenpipe": "^0.3.351",
     "typescript": "^5.7.2",
     "vite": "^6.0.6"
   }
