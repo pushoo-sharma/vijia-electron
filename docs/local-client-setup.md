@@ -53,23 +53,6 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-**ScreenPipe API key (only if searches fail with “requires an API key”):**
-
-1. Start ScreenPipe once (step 5 below).
-2. Run:
-
-   ```bash
-   npm run screenpipe:token
-   ```
-
-3. Add the printed token to `.env`:
-
-   ```env
-   VIJIA_SCREENPIPE_API_KEY=sp-xxxxxxxx
-   ```
-
-4. **Rebuild** Vijia (step 4) so the key is included in the built app.
-
 Optional:
 
 ```env
@@ -85,10 +68,31 @@ Do not commit `.env` — it contains secrets.
 
 ```bash
 npm install
-npm run build
 ```
 
 - `npm install` also installs the ScreenPipe CLI used by `npm run screenpipe`.
+
+**ScreenPipe API key (only if searches fail with “requires an API key”):**
+
+1. Start ScreenPipe once (step 5 below), or in another terminal run `npm run screenpipe`.
+2. Run:
+
+   ```bash
+   npm run screenpipe:token
+   ```
+
+3. Add the printed token to `.env`:
+
+   ```env
+   VIJIA_SCREENPIPE_API_KEY=sp-xxxxxxxx
+   ```
+
+4. Continue with the build below so the key is included in the built app.
+
+```bash
+npm run build
+```
+
 - `npm run build` compiles the app to the `out/` folder.
 - Env vars from `.env` are **baked in at build time**. If you change `.env` later, run `npm run build` again before `npm run preview`.
 
@@ -190,6 +194,7 @@ After pulling new code or changing `.env`:
 ```bash
 npm install
 npm run build
+npm run screenpipe
 npm run preview
 ```
 
